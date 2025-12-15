@@ -33,6 +33,24 @@ export default function RootLayout({
         <Header />
         <main className="flex-1">
           {children}
+          {/* ---- Chat Widget Shim ---- */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.process = window.process || { env: {} };
+            `,
+          }}
+        />
+
+        {/* ---- Chat Widget Script ---- */}
+        <script
+          src="http://localhost:5173/chat-widget.js"
+          data-bot-id="acme"
+          data-position="bottom-right"
+          data-width="360"
+          data-height="520"
+          defer
+        />
         </main>
         <Footer />
         <Toaster position="top-center" richColors theme="light" />
