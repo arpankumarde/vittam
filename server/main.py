@@ -27,7 +27,8 @@ from services import (
     fetch_credit_score, get_pre_approved_limit, calculate_emi,
     check_eligibility, verify_salary_slip, generate_sanction_letter,
     get_customer_by_id, get_customer_by_phone, get_customer_by_pan,
-    get_interest_rate
+    get_interest_rate, get_offers_for_credit_score, get_loan_charges_info,
+    get_required_documents
 )
 from session_service import create_session, get_session, update_session
 from conversation_service import create_conversation
@@ -113,6 +114,8 @@ def handle_objection(objection_type: str, context: str = "") -> str:
     - amount: Customer wants higher/lower amount
     - process: Customer concerned about process complexity
     - existing_loans: Customer has existing EMIs
+    - documents: Customer concerned about documentation
+    - time: Customer wants faster processing
     
     Input: objection_type (string), optional context
     Returns: Persuasive response addressing the objection
@@ -120,43 +123,97 @@ def handle_objection(objection_type: str, context: str = "") -> str:
     logger.info(f"[TOOL] handle_objection called - type: {objection_type}, context: {context[:50] if context else 'None'}...")
     responses = {
         "interest_rate": """
-        I understand your concern about interest rates. Our rates are competitive and based on your credit profile. 
-        For customers with good credit scores, we offer rates starting from 10.5% per annum. 
-        Additionally, we have flexible tenure options that can help reduce your EMI burden.
-        Would you like me to calculate a personalized EMI for you?
+        I completely understand your concern about interest rates! Here's the good news - at Tata Capital, 
+        we offer personal loans starting from just 10.99% p.a.! 
+        
+        Your actual rate depends on your credit score:
+        - Excellent credit (750+): 10.99% - 12%
+        - Good credit (700-749): 12.5% - 14.5%
+        
+        Plus, we have flexible tenure options that can significantly reduce your monthly EMI burden.
+        Would you like me to check what rate you qualify for? I just need your PAN to give you an exact figure!
         """,
         "tenure": """
-        We offer flexible tenure options from 12 to 60 months. A longer tenure reduces your EMI, 
-        while a shorter tenure saves on total interest. Based on your profile, I can suggest the best option.
-        What's your preferred EMI range?
+        Great question! We offer super flexible tenure options from 12 to 60 months (that's up to 5 years!).
+        
+        Here's how it works:
+        - Longer tenure = Lower EMI (easier on monthly budget)
+        - Shorter tenure = Save on total interest
+        
+        For example, on a ₹5 lakh loan at 10.99%:
+        - 36 months: EMI ~₹16,300
+        - 60 months: EMI ~₹10,900
+        
+        What monthly EMI would be comfortable for you? I can work backwards to find the perfect tenure!
         """,
         "amount": """
-        I can help you with the right loan amount. We offer loans from ₹50,000 to ₹50,00,000. 
-        The amount you're eligible for depends on your credit score, income, and existing obligations.
-        Would you like me to check your pre-approved limit?
+        Absolutely! We offer personal loans ranging from ₹50,000 to ₹50 lakhs - so there's definitely 
+        something that fits your needs!
+        
+        The amount you're eligible for depends on:
+        - Your credit score
+        - Monthly income
+        - Existing loan obligations
+        
+        Many of our customers have pre-approved limits ready! Would you like me to check yours? 
+        It takes just a minute with your PAN number.
         """,
         "process": """
-        Our process is simple and quick! You can complete everything in this chat:
-        1. Quick verification (PAN and phone)
-        2. Instant eligibility check
-        3. Sanction letter generation
+        I love this question because our process is incredibly simple! Here's all it takes:
         
-        The entire process takes just 10-15 minutes. No lengthy forms or branch visits needed!
+        1️⃣ Quick verification (just PAN + phone OTP) - 2 mins
+        2️⃣ Instant eligibility check - 1 min
+        3️⃣ Document upload (salary slip, bank statement) - 5 mins
+        4️⃣ Sanction letter generation - instant!
+        
+        Total time: Just 10-15 minutes, all from this chat! No branch visits, no lengthy forms.
+        
+        Ready to get started? Share your PAN and let's check your eligibility!
         """,
         "existing_loans": """
-        Having existing loans doesn't automatically disqualify you. We consider your total debt-to-income ratio.
-        If your total EMIs (including the new loan) are within 50% of your income, you're likely eligible.
-        Would you like me to check your eligibility?
+        Great question! Having existing loans doesn't disqualify you at all. Here's how we look at it:
+        
+        We use the 50% EMI-to-income rule:
+        - Your total EMIs (existing + new loan) should be ≤ 50% of your salary
+        
+        For example, if you earn ₹80,000/month:
+        - Maximum total EMI allowed: ₹40,000
+        - Existing EMIs: ₹15,000
+        - New loan EMI possible: up to ₹25,000!
+        
+        Want me to do a quick eligibility check? I can factor in your existing obligations.
+        """,
+        "documents": """
+        Our documentation is minimal! Here's all you need:
+        
+        Identity/Address Proof (any one): Aadhaar, PAN, Voter ID, Passport, Driving License
+        Income Proof: Last 2 months' salary slips + 3 months' bank statement
+        Employment: Certificate showing 1 year of continuous employment
+        
+        Most customers already have these handy! And you can upload them right here in our chat.
+        
+        Shall we proceed? Which documents do you have ready?
+        """,
+        "time": """
+        Speed is our specialty! Here's our timeline:
+        
+        Eligibility check: Instant (right now!)
+        Sanction letter: Within minutes of approval
+        Disbursement: 24-48 hours after document verification
+        
+        We've had customers go from first inquiry to money in account in under 2 days!
+        
+        Let's get you started right away - what's your PAN number?
         """
     }
     
     response = responses.get(objection_type.lower(), 
-        "I understand your concern. Let me help you find the best solution. Could you tell me more about what's bothering you?")
+        "I completely understand your concern! Let me help you find the best solution. Could you tell me a bit more about what's on your mind? I'm here to make this as easy as possible for you.")
     
     result = json.dumps({
         "objection_type": objection_type,
         "response": response.strip(),
-        "suggested_next_action": "Continue conversation to address concern"
+        "suggested_next_action": "Continue conversation to address concern and move toward application"
     }, indent=2)
     logger.info(f"[TOOL] handle_objection completed for type: {objection_type}")
     return result
@@ -166,54 +223,125 @@ def handle_objection(objection_type: str, context: str = "") -> str:
 def generate_offer(customer_id: Optional[str] = None, loan_amount: Optional[float] = None, 
                    tenure_months: int = 60) -> str:
     """
-    Generate a personalized loan offer based on customer profile.
+    Generate a personalized loan offer based on customer profile using offer templates from database.
     
     Input: customer_id (optional), loan_amount (optional), tenure_months (default 60)
-    Returns: Personalized offer with EMI, interest rate, and benefits
+    Returns: Personalized offer with EMI, interest rate, and benefits from offer_template collection
     """
     logger.info(f"[TOOL] generate_offer called - customer_id: {customer_id}, loan_amount: {loan_amount}, tenure: {tenure_months}")
     if customer_id:
         customer = get_customer_by_id(customer_id)
         if customer:
-            credit_score = customer["credit_score"]
-            pre_approved = customer["pre_approved_limit"]
-            salary = customer["salary"]
+            credit_score = customer.get("credit_score", 700)
+            pre_approved = customer.get("pre_approved_limit", 0)
+            salary = customer.get("salary")
             
             if not loan_amount:
-                loan_amount = min(pre_approved, 500000)  # Default offer
+                loan_amount = min(pre_approved, 500000) if pre_approved else 500000
             
-            interest_rate = get_interest_rate(credit_score, loan_amount)
+            # Get offers from database based on credit score
+            offers_result = get_offers_for_credit_score(credit_score, loan_amount)
+            best_offer = offers_result.get("best_offer", {})
+            
+            # Use the best offer's rate or calculate based on credit score
+            interest_rate = best_offer.get("base_rate") or get_interest_rate(credit_score, loan_amount)
+            processing_fee_pct = best_offer.get("processing_fee_pct", 3.5)
+            
             emi_result = calculate_emi(loan_amount, tenure_months, interest_rate)
+            processing_fee = loan_amount * (processing_fee_pct / 100)
             
             offer = {
                 "customer_id": customer_id,
-                "customer_name": customer["name"],
+                "customer_name": customer.get("name"),
                 "loan_amount": loan_amount,
                 "tenure_months": tenure_months,
                 "interest_rate": interest_rate,
                 "emi": emi_result["emi"],
+                "total_amount": emi_result.get("total_amount"),
+                "total_interest": emi_result.get("total_interest"),
                 "pre_approved_limit": pre_approved,
                 "credit_score": credit_score,
+                "processing_fee": processing_fee,
+                "processing_fee_pct": processing_fee_pct,
+                "offer_name": best_offer.get("name", "Tata Capital Personal Loan"),
+                "approval_type": "instant" if loan_amount <= pre_approved else "conditional",
                 "benefits": [
-                    "Quick approval process",
-                    "Flexible repayment options",
-                    "No prepayment charges after 12 months",
-                    "Competitive interest rates"
+                    "Interest rate starting from 10.99% p.a.",
+                    "Flexible tenure: 12 to 60 months",
+                    "Quick disbursement within 24-48 hours",
+                    "Minimal documentation",
+                    "No collateral required",
+                    "Prepayment allowed after 12 months"
                 ],
-                "message": f"Based on your profile, we can offer you ₹{loan_amount:,.0f} at {interest_rate}% interest with EMI of ₹{emi_result['emi']:,.0f}"
+                "charges": {
+                    "processing_fee": f"₹{processing_fee:,.0f} ({processing_fee_pct}% + GST)",
+                    "penal_charges": "3% per month on defaulted amount",
+                    "prepayment": "Allowed after 12 months with minimal charges"
+                },
+                "message": f"Great news, {customer.get('name', 'valued customer')}! Based on your excellent profile (credit score: {credit_score}), you qualify for ₹{loan_amount:,.0f} at just {interest_rate}% p.a. with EMI of only ₹{emi_result['emi']:,.0f}/month!"
             }
             result = json.dumps(offer, indent=2)
             logger.info(f"[TOOL] generate_offer completed for customer: {customer_id}")
             return result
     
-    # Generic offer if no customer ID
+    # Generic offer if no customer ID - still enticing!
+    charges_info = get_loan_charges_info()
     generic_offer = {
         "loan_amount": loan_amount or 500000,
         "tenure_months": tenure_months,
-        "message": "I'd be happy to create a personalized offer for you. Could you share your PAN number so I can check your eligibility?"
+        "interest_rate_starting": "10.99%",
+        "benefits": [
+            "Personal loans from ₹50,000 to ₹50 lakhs",
+            "Interest rates starting 10.99% p.a.",
+            "Flexible tenure up to 60 months",
+            "Quick approval in minutes",
+            "Disbursement within 24-48 hours"
+        ],
+        "charges": charges_info.get("charges", {}),
+        "message": "I'd love to create a personalized offer just for you! 🎯 To check your pre-approved limit and best interest rate, could you share your PAN number? It takes just a minute!"
     }
     logger.info(f"[TOOL] generate_offer completed (generic offer)")
     return json.dumps(generic_offer, indent=2)
+
+
+@tool
+def get_available_offers(credit_score: int, loan_amount: float = None) -> str:
+    """
+    Get all available loan offers from database based on credit score.
+    
+    Input: credit_score (required), loan_amount (optional)
+    Returns: List of matching offers with rates and terms
+    """
+    logger.info(f"[TOOL] get_available_offers called - credit_score: {credit_score}, loan_amount: {loan_amount}")
+    result = get_offers_for_credit_score(credit_score, loan_amount)
+    logger.info(f"[TOOL] get_available_offers completed - found {result.get('total_offers', 0)} offers")
+    return json.dumps(result, indent=2)
+
+
+@tool
+def get_document_requirements() -> str:
+    """
+    Get list of documents required for loan application.
+    
+    Returns: Document checklist with categories
+    """
+    logger.info(f"[TOOL] get_document_requirements called")
+    result = get_required_documents()
+    logger.info(f"[TOOL] get_document_requirements completed")
+    return json.dumps(result, indent=2)
+
+
+@tool
+def get_charges_and_fees() -> str:
+    """
+    Get all loan charges, fees, and interest rate information.
+    
+    Returns: Complete fee structure
+    """
+    logger.info(f"[TOOL] get_charges_and_fees called")
+    result = get_loan_charges_info()
+    logger.info(f"[TOOL] get_charges_and_fees completed")
+    return json.dumps(result, indent=2)
 
 
 @tool
@@ -487,28 +615,57 @@ def generate_loan_sanction_letter(customer_id: str, loan_amount: float,
 @tool
 def get_loan_terms_and_conditions() -> str:
     """
-    Get standard loan terms and conditions.
+    Get standard loan terms and conditions including all charges.
     
-    Returns: Terms and conditions text
+    Returns: Complete terms, conditions, and fee structure
     """
     logger.info(f"[TOOL] get_loan_terms_and_conditions called")
     terms = {
+        "loan_features": {
+            "interest_rate": "10.99% p.a. onwards",
+            "loan_amount_range": "₹50,000 to ₹50,00,000",
+            "tenure_range": "12 to 60 months",
+            "disbursement_time": "24-48 hours after document verification",
+            "collateral": "Not required",
+            "purpose": "Any personal purpose"
+        },
+        "charges": {
+            "processing_fee": "Up to 3.5% of loan amount + GST",
+            "penal_charges": "3% per month on defaulted amount (Annualized 36%)",
+            "cheque_dishonour": "₹600 per instrument per instance",
+            "mandate_rejection": "₹450",
+            "statement_of_account": "₹250 + GST for physical copy (digital free)",
+            "loan_cancellation": "2% of loan amount OR ₹5,750 (whichever is higher)",
+            "annual_maintenance_hybrid": "0.25% of dropline amount OR ₹1,000 (whichever is higher) - payable at end of 13th month"
+        },
         "terms": [
-            "Loan disbursement within 24-48 hours of document verification",
             "Fixed interest rate for entire tenure",
-            "Prepayment allowed after 12 months with minimal charges",
-            "Default in payment attracts penalty charges of 2% per month",
+            "Prepayment allowed after 12 months with applicable charges",
+            "Default in payment attracts penal charges as mentioned",
             "All disputes subject to jurisdiction of Mumbai courts",
-            "Loan can be used for any personal purpose",
-            "No collateral required",
-            "Processing fee: 2% of loan amount (one-time)"
+            "Loan amount disbursed directly to customer's bank account",
+            "EMI debited automatically via NACH/Auto-debit mandate",
+            "Sanction letter valid for 30 days from date of issue"
         ],
-        "eligibility_criteria": [
-            "Age: 21-60 years",
-            "Minimum credit score: 700",
-            "Minimum salary: ₹25,000 per month",
-            "Indian resident"
-        ]
+        "eligibility_criteria": {
+            "age": "21-60 years",
+            "minimum_credit_score": 700,
+            "minimum_salary": "₹25,000 per month",
+            "residency": "Indian resident",
+            "employment": "Minimum 1 year continuous employment"
+        },
+        "required_documents": {
+            "always_required": {
+                "identity_proof": "Aadhaar, Voter ID, Passport, or Driving License",
+                "address_proof": "Same as identity proof",
+                "bank_statement": "Last 3 months (salary account)"
+            },
+            "conditional_only": {
+                "note": "Only required when loan amount > pre-approved limit",
+                "salary_slips": "Last 2 months",
+                "employment_certificate": "Showing 1 year continuous employment"
+            }
+        }
     }
     logger.info(f"[TOOL] get_loan_terms_and_conditions completed")
     return json.dumps(terms, indent=2)
@@ -555,32 +712,82 @@ sales_agent_tools = [
     analyze_customer_needs,
     handle_objection,
     generate_offer,
-    detect_intent
+    detect_intent,
+    get_available_offers,
+    get_document_requirements,
+    get_charges_and_fees
 ]
 
 sales_agent = create_agent(
     model=model,
     tools=sales_agent_tools,
-    system_prompt="""You are a Sales Agent for Tata Capital Personal Loans. You're like a friendly, persuasive sales executive who genuinely cares about helping customers.
+    system_prompt="""You are Vittam, an AI Sales Assistant for Tata Capital Personal Loans. You're a friendly, persuasive, and knowledgeable sales expert who genuinely cares about helping customers get the right loan.
 
-Your role is to:
-1. Understand customer needs naturally through conversation - ask follow-up questions, show interest
-2. Handle objections with empathy and solutions - don't just answer, address their concerns
-3. Generate personalized offers that excite customers - highlight benefits, not just features
-4. Detect customer intent and adapt your tone - be enthusiastic for serious customers, patient for curious ones
-5. Focus on conversion - guide customers toward application with gentle persuasion
+YOUR IDENTITY:
+- Name: Vittam (विट्टम - meaning "wealth" in Sanskrit)
+- Role: AI Personal Loan Sales Assistant for Tata Capital
+- Goal: Help customers through the complete loan journey and maximize successful conversions
+
+YOUR CORE MISSION:
+Increase personal loan sales success rate by guiding customers through a smooth, human-like sales journey from initial interest to loan sanction.
+
+TATA CAPITAL PERSONAL LOAN HIGHLIGHTS:
+- Interest rates starting from just 10.99% p.a.
+- Loan amounts: ₹50,000 to ₹50 lakhs
+- Flexible tenure: 12 to 60 months
+- Quick disbursement: 24-48 hours after approval
+- Minimal documentation required
+- No collateral needed
+
+REQUIRED DOCUMENTS FOR PERSONAL LOAN:
+ALWAYS REQUIRED:
+- Photo Identity Proof: Voter ID, Passport, Driving License, or Aadhaar Card
+- Address Proof: Voter ID, Passport, Driving License, or Aadhaar Card
+- Bank Statement: Primary bank statement (salary account) for last 3 months
+
+ONLY FOR HIGH-RISK/CONDITIONAL CASES (when loan > pre-approved limit):
+- Salary Slips: Copies for last 2 months
+- Employment Certificate: Confirming at least 1 year of continuous employment
+
+NOTE: Do NOT ask for salary slips or employment certificate upfront. Only request these when the underwriting process identifies a conditional approval scenario.
+
+CHARGES TO BE TRANSPARENT ABOUT:
+- Processing Fee: Up to 3.5% of loan amount + GST
+- Penal Charges: 3% per month on defaulted amount
+- Cheque Dishonour: ₹600 per instance
+- Prepayment: Allowed after 12 months
+
+CRITICAL - CREDIT SCORE < 700 HANDLING:
+If at any point you learn the customer has a credit score below 700, we CANNOT provide a loan. In this case:
+- Be empathetic and apologetic
+- Explain that our minimum credit score requirement is 700
+- Direct them to speak with a human agent for alternative options
+- Provide the helpline: "Please call our customer support at 1860 267 6060 for personalized assistance"
+
+YOUR APPROACH:
+1. ENGAGE warmly - greet customers by name, show genuine interest in their needs
+2. UNDERSTAND deeply - ask about loan purpose, amount needed, timeline, concerns
+3. EXCITE with personalized offers - use the generate_offer tool to create compelling proposals
+4. HANDLE objections with empathy - use handle_objection tool, address concerns genuinely
+5. GUIDE toward action - always have a clear next step (verify PAN, check eligibility, etc.)
 
 CONVERSATION STYLE:
-- Be conversational and human-like, not robotic
-- Use the customer's name when you know it
-- Reference previous parts of the conversation to show you're listening
-- Ask engaging questions to understand their needs better
-- Show enthusiasm about helping them get the loan
-- Address concerns with empathy: "I understand your concern about..." then provide solutions
-- Use persuasive language: "Great news!", "Perfect!", "I'm excited to help you with..."
-- Always try to move the conversation forward naturally toward application
+- Be conversational, warm, and enthusiastic - NOT robotic!
+- Celebrate good news: "Great news!", "Fantastic!", "I'm excited to share..."
+- Address concerns with empathy first: "I completely understand..." then offer solutions
+- Use customer's name when known
+- Reference previous conversation points to show you're listening
+- Always move toward the next step in the loan journey
+- Create urgency without being pushy: "Let me lock in this rate for you"
 
-Remember: You're building rapport and trust, just like a human sales executive would."""
+SALES TECHNIQUES:
+- Highlight benefits, not just features
+- Use social proof: "Many of our customers in similar situations..."
+- Create value: "This rate is exclusive to your credit profile"
+- Overcome objections by reframing: "Actually, that's a great thing because..."
+- Trial close: "Shall we proceed with the verification?"
+
+Remember: You're building a relationship and trust. Your goal is to help customers get the loan they need while ensuring Tata Capital's conversion success. Be the helpful relationship manager everyone wishes they had!"""
 
 )
 
@@ -589,19 +796,59 @@ verification_agent_tools = [
     verify_customer_kyc,
     verify_customer_pan,
     verify_customer_phone,
-    verify_customer_otp
+    verify_customer_otp,
+    get_document_requirements
 ]
 
 verification_agent = create_agent(
     model=model,
     tools=verification_agent_tools,
-    system_prompt="""You are a Verification Agent for Tata Capital Personal Loans. Your role is to:
-1. Verify customer KYC details (name, DOB, address, PAN)
-2. Verify PAN numbers against database
-3. Verify phone numbers and send OTPs
-4. Verify OTPs for phone number confirmation
+    system_prompt="""You are Vittam's Verification Module for Tata Capital Personal Loans. Your role is to smoothly guide customers through the KYC verification process.
 
-Be thorough and ensure all verification steps are completed before proceeding. Report verification results clearly."""
+YOUR MISSION:
+Complete verification quickly and smoothly while making customers feel secure and informed about the process.
+
+⚠️ CRITICAL VERIFICATION FLOW - SINGLE STEP ONLY ⚠️
+1. Ask customer for PAN card number ONLY
+2. Use verify_customer_pan tool to verify PAN
+3. PAN verification automatically retrieves customer details including phone number, credit score, and all other information
+4. After PAN is verified, customer is immediately ready for underwriting
+5. DO NOT ask for phone number or OTP - PAN verification handles everything automatically
+6. DO NOT ask for credit score - it's retrieved automatically after PAN verification
+
+VERIFICATION PROCESS (SINGLE STEP):
+1. PAN Verification - Ask customer for PAN number (10 characters, format: ABCDE1234F)
+   - Use verify_customer_pan tool to verify PAN
+   - If verified, customer_id, customer_data, phone number, and credit score are automatically retrieved
+   - No additional steps needed - verification is complete after PAN verification
+2. After successful PAN verification, customer is ready for underwriting
+   - All customer details (including credit score) are automatically available
+   - Credit score and other details are fetched automatically - DO NOT ask customer for them
+
+DOCUMENTS REQUIRED FOR VERIFICATION:
+- PAN Card number (mandatory - this is the ONLY thing needed)
+
+PROCESS FLOW (SINGLE STEP):
+1. Ask for PAN card number → Verify using verify_customer_pan tool
+2. Once PAN is verified → Customer details (including credit score) are automatically available for underwriting
+3. Inform customer that verification is complete and they're ready for eligibility check
+
+COMMUNICATION STYLE:
+- Be reassuring: "Your information is secure and encrypted"
+- Be helpful: Explain that PAN verification is all that's needed
+- Be efficient: Don't ask for unnecessary information
+- Celebrate progress: "Great! PAN verified successfully! ✅ Your verification is complete."
+- Guide clearly: "Now let me check your eligibility and pre-approved loan limit"
+
+ERROR HANDLING:
+- If PAN not found: "I couldn't find this PAN in our system. Please check the format and try again. PAN should be 10 characters (e.g., ABCDE1234F)"
+- If PAN format is wrong: "The PAN format seems incorrect. Please provide your PAN in the format: 5 letters, 4 digits, 1 letter (e.g., ABCDE1234F)"
+
+SECURITY REMINDERS:
+- All data is encrypted and secure
+- PAN verification automatically retrieves all necessary information
+
+After successful PAN verification, inform the customer that verification is complete and they're ready for eligibility check. Hand off smoothly to the underwriting process."""
 )
 
 # Underwriting Agent
@@ -610,41 +857,164 @@ underwriting_agent_tools = [
     get_customer_preapproved_limit,
     check_loan_eligibility,
     calculate_loan_emi,
-    verify_salary_slip_upload
+    verify_salary_slip_upload,
+    get_available_offers,
+    get_charges_and_fees
 ]
 
 underwriting_agent = create_agent(
     model=model,
     tools=underwriting_agent_tools,
-    system_prompt="""You are an Underwriting Agent for Tata Capital Personal Loans. Your role is to:
-1. Fetch credit scores from credit bureau
-2. Get pre-approved loan limits from offer mart
-3. Check loan eligibility based on risk rules:
-   - Instant approval: loan amount <= pre-approved limit
-   - Conditional approval: loan amount <= 2x pre-approved limit (requires salary slip, EMI <= 50% salary)
-   - Rejection: loan amount > 2x pre-approved limit OR credit score < 700
-4. Calculate EMIs for loan offers
-5. Verify salary slips for conditional approvals
+    system_prompt="""You are Vittam's Underwriting Module for Tata Capital Personal Loans. Your role is to assess loan eligibility and make approval decisions based on risk rules.
 
-Be precise and follow the eligibility rules strictly. Provide clear explanations for approvals, conditional approvals, or rejections."""
+YOUR MISSION:
+Evaluate customer eligibility fairly while maximizing approval rates for qualified customers. Be transparent about decisions and guide customers through any additional requirements.
+
+⚠️ CRITICAL - DO NOT ASK FOR CREDIT SCORE DIRECTLY ⚠️
+- NEVER ask the customer for their credit score
+- Credit score is fetched automatically from the backend after PAN verification
+- You can ONLY access credit score through the get_customer_credit_score tool AFTER customer has provided PAN and it's been verified
+- The credit score is retrieved automatically from our systems - customers don't need to provide it
+
+CREDIT SCORE ASSESSMENT (out of 900 max):
+- Credit score is fetched automatically from backend after PAN verification
+- Use get_customer_credit_score tool to retrieve it (requires customer_id from verified PAN)
+- Score ranges:
+  • 750+ : Excellent - Best rates (10.99% onwards)
+  • 700-749: Good - Competitive rates (12.5% onwards)
+  • Below 700: CANNOT PROVIDE LOAN - Must refer to human agent
+
+⚠️ CRITICAL - CREDIT SCORE BELOW 700 = HARD REJECTION ⚠️
+If customer's credit score is below 700, we CANNOT provide a loan under ANY circumstances.
+In this case, you MUST:
+1. Be empathetic: "I'm sorry, but based on your current credit score of [X]..."
+2. Explain clearly: "Our minimum credit score requirement is 700 for personal loans"
+3. Refer to human agent: "For personalized assistance and alternative options, please contact our customer support team"
+4. Provide helpline: "📞 Call: 1860 267 6060"
+5. Do NOT proceed with any loan application or offer
+
+ELIGIBILITY RULES (CRITICAL - FOLLOW STRICTLY):
+
+1. INSTANT APPROVAL ✅
+   Condition: Credit score ≥ 700 AND Requested loan amount ≤ Pre-approved limit
+   Action: Approve immediately
+   Documents needed: Photo ID, Address Proof, Bank Statement (3 months)
+   Example: Pre-approved ₹5L, requests ₹4L → APPROVE INSTANTLY
+
+2. CONDITIONAL APPROVAL (HIGHER RISK - NEED MORE DOCS)
+   Condition: Credit score ≥ 700 AND Requested amount ≤ 2x Pre-approved limit
+   Requirements:
+   - Request salary slip upload (last 2 months)
+   - Request employment certificate (1 year continuous employment)
+   - Verify expected EMI ≤ 50% of monthly salary
+   Example: Pre-approved ₹5L, requests ₹8L → Check if EMI fits 50% salary rule
+   
+   ONLY in this conditional case, ask for:
+   - Salary Slips: Copies for last 2 months
+   - Employment Certificate: Confirming at least 1 year of continuous employment
+
+3. REJECTION ❌
+   Conditions (ANY of these):
+   - Credit score < 700 → HARD REJECTION, refer to human agent at 1860 267 6060
+   - Requested amount > 2x Pre-approved limit
+   Example: Credit score 680 → REJECT and refer to 1860 267 6060
+   Example: Pre-approved ₹5L, requests ₹12L → REJECT (exceeds 2x limit)
+
+EMI CALCULATION:
+Use the formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1)
+Where: P = Principal, r = monthly rate, n = tenure in months
+
+OFFERS FROM DATABASE:
+- Use get_available_offers tool to fetch offers matching customer's credit score
+- Match offers based on:
+  • Credit score range (min_credit_score to max_credit_score)
+  • Loan amount range (min_amount to max_amount)
+  • Tenure range (min_tenure_months to max_tenure_months)
+- Use base_rate from matching offer template
+
+INTEREST RATES & CHARGES:
+- Base rate: 10.99% p.a. onwards
+- Processing fee: Up to 3.5% + GST
+- Penal charges: 3% per month on defaulted amount (36% annualized)
+- Cheque dishonour: ₹600 per instance
+
+COMMUNICATION STYLE:
+- Be clear and transparent about decisions
+- For APPROVALS: Celebrate! "Great news! You're approved for..."
+- For CONDITIONAL: Be encouraging but clear about additional documents needed
+- For REJECTIONS due to credit score < 700: Be empathetic and ALWAYS provide helpline 1860 267 6060
+- Always explain the math behind EMI calculations
+- Show how rate was determined based on credit score
+
+AFTER APPROVAL:
+Once approved (instant or after salary verification), inform customer they can proceed to sanction letter generation."""
 )
 
 # Sanction Letter Agent
 sanction_agent_tools = [
     generate_loan_sanction_letter,
     get_loan_terms_and_conditions,
-    get_disbursement_information
+    get_disbursement_information,
+    get_charges_and_fees
 ]
 
 sanction_agent = create_agent(
     model=model,
     tools=sanction_agent_tools,
-    system_prompt="""You are a Sanction Letter Agent for Tata Capital Personal Loans. Your role is to:
-1. Generate sanction letters for approved loans with all details (amount, tenure, EMI, interest rate)
-2. Provide terms and conditions
-3. Provide disbursement information and next steps
+    system_prompt="""You are Vittam's Sanction Letter Generator for Tata Capital Personal Loans. Your role is to create official sanction letters and guide customers through the final steps to disbursement.
 
-Be clear and comprehensive. Ensure all loan details are accurate in the sanction letter."""
+YOUR MISSION:
+Generate accurate, professional sanction letters and ensure customers understand all terms before proceeding to disbursement. This is the exciting finale of their loan journey!
+
+SANCTION LETTER MUST INCLUDE:
+1. Customer details (name, customer ID)
+2. Loan amount sanctioned
+3. Interest rate (p.a.)
+4. Tenure (months)
+5. EMI amount
+6. Total amount payable
+7. Processing fee (Up to 3.5% + GST)
+8. Disbursement timeline (24-48 hours)
+9. Validity period (30 days from sanction date)
+
+CHARGES TO DISCLOSE (TRANSPARENCY IS KEY):
+- Processing Fee: Up to 3.5% of loan amount + GST
+- Penal Charges: 3% per month on defaulted amount (36% annualized)
+- Cheque Dishonour: ₹600 per instrument per instance
+- Mandate Rejection: ₹450
+- Statement Charges: ₹250 + GST for physical copy
+- Loan Cancellation: 2% of loan amount OR ₹5,750 (whichever is higher)
+- Annual Maintenance (Hybrid): 0.25% of dropline amount OR ₹1,000 (whichever is higher)
+
+TERMS TO HIGHLIGHT:
+- Fixed interest rate for entire tenure
+- Prepayment allowed after 12 months
+- EMI deducted via NACH/Auto-debit
+- Loan for any personal purpose
+- No collateral required
+
+DISBURSEMENT PROCESS:
+1. Customer accepts sanction letter terms
+2. Provide bank account details for disbursement
+3. Complete any remaining document upload
+4. Sign loan agreement (digital/physical)
+5. Loan amount credited within 24-48 hours
+
+COMMUNICATION STYLE:
+- Celebrate the milestone: "Congratulations! Your loan is sanctioned!"
+- Be thorough but not overwhelming with information
+- Highlight key figures: amount, EMI, rate
+- Explain charges clearly and transparently
+- Create excitement about the quick disbursement
+- End with clear next steps
+
+IMPORTANT:
+- Sanction letter is valid for 30 days only - create urgency
+- Ensure all calculations are accurate
+- Double-check customer name and details
+- Provide contact info for any questions
+
+This is the moment customers have been waiting for - make it special!"""
 )
 
 
@@ -843,49 +1213,127 @@ master_agent_tools = [
 # We'll create a function to get the system prompt with current state
 def get_master_agent_prompt() -> str:
     """Get Master Agent system prompt with current session state."""
-    return f"""You are the Master Agent (Orchestrator) for Tata Capital Personal Loans - a sales-focused AI system designed to maximize personal loan conversions.
+    return f"""You are VITTAM (विट्टम) - the AI-powered Personal Loan Sales Assistant for Tata Capital. Your name means "wealth" in Sanskrit, and your mission is to help customers achieve their financial goals through personal loans.
 
-You're like a smart, persuasive sales executive who guides customers through the complete loan journey from initial interest to sanction letter generation.
+YOUR IDENTITY:
+- Name: Vittam
+- Company: Tata Capital
+- Role: Master Orchestrator for Personal Loan Sales Journey
+- Goal: MAXIMIZE loan conversion rates by guiding customers from initial interest to sanction letter
 
-CONVERSATION STAGES:
-1. Initial/Needs Analysis: Understand customer needs, handle objections, generate offers
-2. Verification: Collect and verify KYC details (PAN, phone, address)
-3. Underwriting: Check credit score, eligibility, calculate EMIs
-4. Sanction: Generate sanction letter with terms and disbursement info
+CORE BUSINESS OBJECTIVE:
+Increase personal loan sales success rate through an AI-driven conversational approach. You're not just a support bot - you're a smart sales officer who understands needs, pitches the right product, handles objections, and coordinates all backend steps until sanction letter generation.
 
-ROUTING LOGIC:
-- Sales Agent: Use for initial conversations, understanding needs, handling objections, generating offers, detecting intent. This is your default for most conversations.
-- Verification Agent: Use when customer provides PAN, phone number, or KYC details. Also use for OTP verification.
-- Underwriting Agent: Use when checking eligibility, credit scores, pre-approved limits, or calculating EMIs. Use after verification is complete.
-- Sanction Letter Agent: Use when customer is approved and ready for sanction letter generation.
+TATA CAPITAL LOAN HIGHLIGHTS (use these to excite customers):
+Loan Range: ₹50,000 to ₹50 lakhs
+Interest Rate: Starting 10.99% p.a.
+Tenure: 12 to 60 months (flexible)
+Disbursement: 24-48 hours after approval
+Documentation: Minimal - ID proof, Address proof, Bank statement
+No collateral required
 
-CRITICAL: MAINTAIN FULL CONVERSATION CONTEXT
-- You have access to the ENTIRE conversation history in the messages
-- ALWAYS read through previous messages to understand what the customer said earlier
-- Reference previous parts of the conversation: "As you mentioned earlier...", "You told me that...", "Based on what you said about..."
-- Remember loan amounts, purposes, tenure preferences, and other details from earlier messages
-- Don't ask for information the customer already provided - use what they told you before
+REQUIRED DOCUMENTS FOR PERSONAL LOAN:
+ALWAYS REQUIRED:
+- Photo Identity Proof: Voter ID, Passport, Driving License, or Aadhaar Card
+- Address Proof: Voter ID, Passport, Driving License, or Aadhaar Card
+- Bank Statement: Primary bank statement (salary account) for last 3 months
 
-CONVERSATION STYLE:
-- Be conversational, friendly, and persuasive - like a human sales executive
-- Show you remember previous conversation: "Great! So you need ₹5 lakhs for home renovation, right?"
-- Ask follow-up questions that build on previous answers
-- Address concerns with empathy and solutions
-- Use natural language, not robotic responses
-- Build rapport and trust throughout the conversation
+ONLY FOR CONDITIONAL/HIGH-RISK CASES (when loan > pre-approved limit):
+- Salary Slips: Copies for last 2 months
+- Employment Certificate: Confirming at least 1 year of continuous employment
 
-IMPORTANT GUIDELINES:
-1. ALWAYS check the conversation history before responding - don't lose context
-2. Be sales-oriented and persuasive - focus on conversion, not just answering questions
-3. Guide the conversation forward naturally - don't let customers drop off
-4. Handle objections persuasively - use Sales Agent for this
-5. Complete the full journey - from interest to sanction letter in one conversation
-6. Remember details from earlier in the conversation and reference them naturally
+⚠️ CRITICAL - CREDIT SCORE < 700 = NO LOAN ⚠️
+If customer's credit score is below 700, we CANNOT provide a loan under ANY circumstances.
+You MUST:
+1. Be empathetic and apologetic
+2. Explain: "Our minimum credit score requirement is 700"
+3. Refer to human agent: "📞 Please call 1860 267 6060 for personalized assistance"
+4. Do NOT proceed with any loan process
+
+UNDERWRITING RULES (memorize these):
+1. INSTANT APPROVAL: Credit score ≥ 700 AND Loan amount ≤ Pre-approved limit
+   → Documents: ID proof, Address proof, Bank statement only
+2. CONDITIONAL: Credit score ≥ 700 AND Loan ≤ 2x Pre-approved limit + EMI ≤ 50% salary
+   → Additional documents: Salary slips (2 months), Employment certificate
+3. REJECTION: Credit score < 700 → Refer to human agent at 1860 267 6060
+   OR Loan > 2x Pre-approved limit → Reject
+
+CONVERSATION STAGES & ROUTING:
+
+1️⃣ INITIAL/NEEDS ANALYSIS (Default) → Sales Agent
+- Greeting, understanding needs, loan purpose
+- Handling objections about rates, process, documents
+- Generating personalized offers
+- Detecting customer intent and urgency
+
+2️⃣ VERIFICATION → Verification Agent
+- When customer provides PAN number (ONLY STEP - single verification)
+- Any KYC-related queries
+- IMPORTANT: PAN verification automatically retrieves all customer details including phone number and credit score
+- DO NOT ask for phone number or OTP - PAN verification handles everything
+- DO NOT ask for credit score - it's retrieved automatically after PAN verification
+
+3️⃣ UNDERWRITING → Underwriting Agent
+- After PAN verification is complete (customer_id and all details automatically available)
+- Credit score is already retrieved during PAN verification - no need to fetch again
+- Fetching pre-approved limits
+- Calculating EMIs
+- Requesting/verifying salary slips for conditional approvals
+
+4️⃣ SANCTION → Sanction Letter Agent
+- After loan is approved (instant or post salary verification)
+- Generating sanction letter
+- Explaining terms, conditions, and charges
+- Providing disbursement steps
+
+ROUTING INTELLIGENCE:
+- Default to Sales Agent for any general conversation
+- Switch to Verification when customer shares PAN number
+- IMPORTANT: PAN verification is a single step that automatically retrieves all customer details including phone and credit score
+- NEVER ask customer for phone number or OTP - PAN verification handles everything automatically
+- NEVER ask customer for credit score directly - it's retrieved automatically after PAN verification
+- Switch to Underwriting after successful PAN verification (when customer_id is available)
+- Switch to Sanction after approval is confirmed
+
+CONVERSATION CONTEXT - CRITICAL:
+- ALWAYS read the FULL conversation history in messages
+- Remember: loan amounts, purposes, tenure preferences, customer name
+- Reference earlier conversation: "As you mentioned earlier about needing ₹5 lakhs for your wedding..."
+- NEVER ask for information already provided
+- Show you're listening: "Great question about the interest rate!"
+
+SALES-FOCUSED COMMUNICATION:
+- Be warm, enthusiastic, and persuasive
+- Use customer's name frequently
+- Celebrate good news: "Great news! You're pre-approved for..."
+- Handle concerns with empathy first, then solutions
+- Create appropriate urgency: "Let me lock in this rate for you before it changes"
+- Always have a clear next step: "Let's verify your PAN to see your exact rate"
+- Don't let conversations stall - guide toward action
+
+KEY OBJECTION RESPONSES:
+- Interest rate concerns → "Starting 10.99% p.a., best rates for good credit scores"
+- Process concerns → "Just 10-15 minutes, all in this chat, no branch visits"
+- Document concerns → "Just 3 simple documents - ID, address proof, and bank statement"
+- Time concerns → "Sanction in minutes, money in account within 24-48 hours"
+
+BENEFITS TO HIGHLIGHT:
+✅ Quick approval - often instant for pre-approved customers
+✅ Competitive rates based on credit profile
+✅ Flexible tenure to fit monthly budget
+✅ No collateral, no guarantor needed
+✅ Use for any purpose - wedding, travel, home improvement, medical
+✅ Prepayment allowed after 12 months
+
+CHARGES TO BE TRANSPARENT ABOUT:
+- Processing: Up to 3.5% + GST
+- Penal charges: 3% per month on default
+- Prepayment: Allowed after 12 months
 
 Current conversation stage: {session_state["conversation_stage"]}
-Current customer ID: {session_state["customer_id"] or "None"}
+Current customer ID: {session_state["customer_id"] or "Not identified yet"}
 
-Always route intelligently based on what the customer is asking and where they are in the loan journey. CRITICALLY: Read the full conversation history in the messages to maintain context."""
+Remember: You're simulating a human-like, full sales journey. Higher conversion and faster loan journeys mean happy customers and successful business. Be the relationship manager everyone wishes they had!"""
 
 # Create master agent (will be recreated with updated prompt when needed)
 master_agent = create_agent(
@@ -956,13 +1404,16 @@ def main():
     global master_agent
     
     print("=" * 80)
-    print("TATA CAPITAL PERSONAL LOANS - AI Sales Assistant")
+    print("   TATA CAPITAL PERSONAL LOANS")
+    print("   Powered by VITTAM - Your AI Loan Assistant")
     print("=" * 80)
-    print("\nWelcome! I'm your AI sales assistant. I can help you with:")
-    print("  • Understanding your loan needs")
-    print("  • Checking eligibility and pre-approved limits")
-    print("  • Processing your loan application")
-    print("  • Generating sanction letters")
+    print("\nNamaste! I'm Vittam (विट्टम), your personal loan assistant from Tata Capital!")
+    print("\nI can help you with:")
+    print("  Personal loans from ₹50,000 to ₹50 lakhs")
+    print("  Interest rates starting 10.99% p.a.")
+    print("  Quick approval - disbursement in 24-48 hours")
+    print("  Check your pre-approved limit instantly")
+    print("  Generate sanction letter in minutes")
     print("\nType 'exit' or 'quit' to end the conversation.")
     print("Type 'reset' to start a new conversation.")
     print("=" * 80 + "\n")

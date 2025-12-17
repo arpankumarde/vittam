@@ -1,441 +1,470 @@
 """
-Hardcoded Data Services for Personal Loan Sales System
+Database-backed Services for Personal Loan Sales System
 
-This module provides mock services for:
-- Customer data (CRM)
-- Credit bureau scores
-- KYC verification
-- PAN verification
-- Phone verification
-- Offer mart (pre-approved limits)
+This module provides services backed by MongoDB for:
+- Customer data (CRM) - from users collection
+- Credit bureau scores - from kycs collection
+- KYC verification - from kycs collection
+- PAN verification - from kycs collection
+- Phone verification - from users collection
+- Offer mart (pre-approved limits) - from users collection
 - EMI calculations
-- Risk rules and eligibility
+- Risk rules and eligibility - using offer_template collection
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from datetime import datetime
+
+from database import (
+    users_collection,
+    kycs_collection,
+    offer_template_collection,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 
-# Synthetic Customer Database (Minimum 10 customers)
-CUSTOMER_DATABASE = {
-    "CUST001": {
-        "name": "Rajesh Kumar",
-        "age": 32,
-        "city": "Mumbai",
-        "phone": "+919876543210",
-        "email": "rajesh.kumar@email.com",
-        "pan": "ABCDE1234F",
-        "address": "123, MG Road, Mumbai - 400001",
-        "dob": "1992-05-15",
-        "salary": 75000,
-        "current_loans": [{"type": "Home Loan", "emi": 25000, "outstanding": 5000000}],
-        "credit_score": 780,
-        "pre_approved_limit": 500000,
-        "existing_customer": True
-    },
-    "CUST002": {
-        "name": "Priya Sharma",
-        "age": 28,
-        "city": "Delhi",
-        "phone": "+919876543211",
-        "email": "priya.sharma@email.com",
-        "pan": "FGHIJ5678K",
-        "address": "456, Connaught Place, Delhi - 110001",
-        "dob": "1996-08-22",
-        "salary": 60000,
-        "current_loans": [],
-        "credit_score": 720,
-        "pre_approved_limit": 300000,
-        "existing_customer": False
-    },
-    "CUST003": {
-        "name": "Amit Patel",
-        "age": 35,
-        "city": "Ahmedabad",
-        "phone": "+919876543212",
-        "email": "amit.patel@email.com",
-        "pan": "KLMNO9012P",
-        "address": "789, CG Road, Ahmedabad - 380009",
-        "dob": "1989-03-10",
-        "salary": 95000,
-        "current_loans": [{"type": "Car Loan", "emi": 15000, "outstanding": 800000}],
-        "credit_score": 810,
-        "pre_approved_limit": 800000,
-        "existing_customer": True
-    },
-    "CUST004": {
-        "name": "Sneha Reddy",
-        "age": 29,
-        "city": "Bangalore",
-        "phone": "+919876543213",
-        "email": "sneha.reddy@email.com",
-        "pan": "PQRST3456U",
-        "address": "321, Brigade Road, Bangalore - 560001",
-        "dob": "1995-11-05",
-        "salary": 55000,
-        "current_loans": [],
-        "credit_score": 690,
-        "pre_approved_limit": 200000,
-        "existing_customer": False
-    },
-    "CUST005": {
-        "name": "Vikram Singh",
-        "age": 42,
-        "city": "Pune",
-        "phone": "+919876543214",
-        "email": "vikram.singh@email.com",
-        "pan": "UVWXY7890Z",
-        "address": "654, FC Road, Pune - 411004",
-        "dob": "1982-07-18",
-        "salary": 120000,
-        "current_loans": [{"type": "Personal Loan", "emi": 20000, "outstanding": 600000}],
-        "credit_score": 750,
-        "pre_approved_limit": 1000000,
-        "existing_customer": True
-    },
-    "CUST006": {
-        "name": "Anjali Mehta",
-        "age": 26,
-        "city": "Chennai",
-        "phone": "+919876543215",
-        "email": "anjali.mehta@email.com",
-        "pan": "ZABCD1234E",
-        "address": "987, Mount Road, Chennai - 600002",
-        "dob": "1998-01-25",
-        "salary": 48000,
-        "current_loans": [],
-        "credit_score": 680,
-        "pre_approved_limit": 150000,
-        "existing_customer": False
-    },
-    "CUST007": {
-        "name": "Rohit Verma",
-        "age": 38,
-        "city": "Kolkata",
-        "phone": "+919876543216",
-        "email": "rohit.verma@email.com",
-        "pan": "EFGHI5678J",
-        "address": "147, Park Street, Kolkata - 700016",
-        "dob": "1986-09-12",
-        "salary": 88000,
-        "current_loans": [{"type": "Home Loan", "emi": 30000, "outstanding": 7000000}],
-        "credit_score": 790,
-        "pre_approved_limit": 600000,
-        "existing_customer": True
-    },
-    "CUST008": {
-        "name": "Kavita Nair",
-        "age": 31,
-        "city": "Hyderabad",
-        "phone": "+919876543217",
-        "email": "kavita.nair@email.com",
-        "pan": "JKLMN9012O",
-        "address": "258, Banjara Hills, Hyderabad - 500034",
-        "dob": "1993-04-30",
-        "salary": 70000,
-        "current_loans": [],
-        "credit_score": 740,
-        "pre_approved_limit": 400000,
-        "existing_customer": False
-    },
-    "CUST009": {
-        "name": "Manish Gupta",
-        "age": 45,
-        "city": "Jaipur",
-        "phone": "+919876543218",
-        "email": "manish.gupta@email.com",
-        "pan": "OPQRS3456T",
-        "address": "369, MI Road, Jaipur - 302001",
-        "dob": "1979-12-08",
-        "salary": 110000,
-        "current_loans": [{"type": "Car Loan", "emi": 18000, "outstanding": 900000}],
-        "credit_score": 820,
-        "pre_approved_limit": 1200000,
-        "existing_customer": True
-    },
-    "CUST010": {
-        "name": "Divya Iyer",
-        "age": 27,
-        "city": "Coimbatore",
-        "phone": "+919876543219",
-        "email": "divya.iyer@email.com",
-        "pan": "TUVWX7890Y",
-        "address": "741, DB Road, Coimbatore - 641018",
-        "dob": "1997-06-14",
-        "salary": 52000,
-        "current_loans": [],
-        "credit_score": 710,
-        "pre_approved_limit": 250000,
-        "existing_customer": False
-    },
-    "CUST011": {
-        "name": "Suresh Menon",
-        "age": 33,
-        "city": "Kochi",
-        "phone": "+919876543220",
-        "email": "suresh.menon@email.com",
-        "pan": "YZABC1234D",
-        "address": "852, MG Road, Kochi - 682016",
-        "dob": "1991-10-20",
-        "salary": 65000,
-        "current_loans": [],
-        "credit_score": 730,
-        "pre_approved_limit": 350000,
-        "existing_customer": False
-    },
-    "CUST012": {
-        "name": "Pooja Desai",
-        "age": 30,
-        "city": "Surat",
-        "phone": "+919876543221",
-        "email": "pooja.desai@email.com",
-        "pan": "DEFGH5678I",
-        "address": "963, Ring Road, Surat - 395002",
-        "dob": "1994-02-28",
-        "salary": 58000,
-        "current_loans": [],
-        "credit_score": 705,
-        "pre_approved_limit": 280000,
-        "existing_customer": False
+def _normalize_phone(phone: str) -> str:
+    """Normalize phone number to 10-digit format (without +91 prefix)."""
+    phone_clean = phone.strip().replace(" ", "").replace("-", "")
+    # Remove +91 or 91 prefix
+    if phone_clean.startswith("+91"):
+        phone_clean = phone_clean[3:]
+    elif phone_clean.startswith("91") and len(phone_clean) > 10:
+        phone_clean = phone_clean[2:]
+    return phone_clean
+
+
+def _format_phone_for_display(phone: str) -> str:
+    """Format phone number with +91 prefix for display."""
+    normalized = _normalize_phone(phone)
+    return f"+91{normalized}"
+
+
+def _build_customer_data(user: Dict, kyc: Optional[Dict] = None) -> Dict:
+    """
+    Build a unified customer data dict from user and kyc documents.
+    This maintains backward compatibility with the old hardcoded format.
+    """
+    if not user:
+        return None
+
+    # Calculate age from dob if available
+    age = None
+    dob_str = None
+    if user.get("dob"):
+        dob = user["dob"]
+        if isinstance(dob, datetime):
+            age = (datetime.now() - dob).days // 365
+            dob_str = dob.strftime("%Y-%m-%d")
+        elif isinstance(dob, str):
+            dob_str = dob
+
+    # Use phone as customer_id (normalized)
+    phone = user.get("phone", "")
+    customer_id = _normalize_phone(phone) if phone else str(user.get("_id", ""))
+
+    customer_data = {
+        "customer_id": customer_id,
+        "name": user.get("name"),
+        "age": age,
+        "city": user.get("city"),
+        "phone": _format_phone_for_display(phone) if phone else None,
+        "email": user.get("email"),
+        "dob": dob_str,
+        "current_loans": user.get("current_loans", []),
+        "pre_approved_limit": user.get("pre_approved_limit", 0),
+        "salary": user.get("salary"),  # May be None if not in DB
+        "existing_customer": True,  # If found in DB, they're an existing customer
     }
-}
 
-# Valid PAN numbers mapping
-VALID_PANS = {customer["pan"]: customer_id for customer_id, customer in CUSTOMER_DATABASE.items()}
+    # Merge KYC data if available
+    if kyc:
+        customer_data["pan"] = kyc.get("pan")
+        customer_data["credit_score"] = kyc.get("credit_score")
+        customer_data["address"] = kyc.get("address")
+        # Use KYC dob if user dob not available
+        if not dob_str and kyc.get("dob"):
+            kyc_dob = kyc["dob"]
+            if isinstance(kyc_dob, datetime):
+                customer_data["dob"] = kyc_dob.strftime("%Y-%m-%d")
+                customer_data["age"] = (datetime.now() - kyc_dob).days // 365
+            elif isinstance(kyc_dob, str):
+                customer_data["dob"] = kyc_dob
 
-# Valid Phone numbers mapping
-VALID_PHONES = {customer["phone"]: customer_id for customer_id, customer in CUSTOMER_DATABASE.items()}
-
-# Interest rates based on credit score and loan amount
-INTEREST_RATES = {
-    "excellent": {"min": 10.5, "max": 12.0},  # 750+
-    "good": {"min": 12.5, "max": 14.5},      # 700-749
-    "fair": {"min": 15.0, "max": 18.0},      # 650-699
-    "poor": {"min": 18.5, "max": 24.0}       # <650
-}
+    return customer_data
 
 
 def get_customer_by_phone(phone: str) -> Optional[Dict]:
-    """Get customer data from CRM by phone number."""
+    """Get customer data from database by phone number."""
     logger.info(f"[SERVICE] get_customer_by_phone called - phone: {phone}")
-    customer_id = VALID_PHONES.get(phone)
-    if customer_id:
-        logger.info(f"[SERVICE] get_customer_by_phone - Customer found: {customer_id}")
-        return {"customer_id": customer_id, **CUSTOMER_DATABASE[customer_id]}
-    logger.warning(f"[SERVICE] get_customer_by_phone - Customer not found for phone: {phone}")
-    return None
+
+    normalized_phone = _normalize_phone(phone)
+
+    # Query users collection
+    user = users_collection.find_one({"phone": normalized_phone})
+
+    if not user:
+        logger.warning(
+            f"[SERVICE] get_customer_by_phone - Customer not found for phone: {phone}"
+        )
+        return None
+
+    # Get associated KYC data
+    kyc = kycs_collection.find_one({"phone": normalized_phone})
+
+    customer_data = _build_customer_data(user, kyc)
+    logger.info(
+        f"[SERVICE] get_customer_by_phone - Customer found: {customer_data['customer_id']}"
+    )
+    return customer_data
 
 
 def get_customer_by_pan(pan: str) -> Optional[Dict]:
-    """Get customer data from CRM by PAN number."""
+    """Get customer data from database by PAN number."""
     logger.info(f"[SERVICE] get_customer_by_pan called - PAN: {pan}")
-    customer_id = VALID_PANS.get(pan.upper())
-    if customer_id:
-        logger.info(f"[SERVICE] get_customer_by_pan - Customer found: {customer_id}")
-        return {"customer_id": customer_id, **CUSTOMER_DATABASE[customer_id]}
-    logger.warning(f"[SERVICE] get_customer_by_pan - Customer not found for PAN: {pan}")
-    return None
+
+    pan_upper = pan.upper().strip()
+
+    # Query kycs collection to get phone number
+    kyc = kycs_collection.find_one({"pan": pan_upper})
+
+    if not kyc:
+        logger.warning(
+            f"[SERVICE] get_customer_by_pan - Customer not found for PAN: {pan}"
+        )
+        return None
+
+    # Get user data using phone from KYC
+    phone = kyc.get("phone")
+    user = None
+    if phone:
+        normalized_phone = _normalize_phone(phone)
+        user = users_collection.find_one({"phone": normalized_phone})
+
+    # Build customer data (even if user not found, return KYC data)
+    if user:
+        customer_data = _build_customer_data(user, kyc)
+    else:
+        # Build from KYC only
+        customer_data = {
+            "customer_id": phone if phone else str(kyc.get("_id", "")),
+            "name": kyc.get("name"),
+            "pan": kyc.get("pan"),
+            "credit_score": kyc.get("credit_score"),
+            "address": kyc.get("address"),
+            "phone": _format_phone_for_display(phone) if phone else None,
+            "existing_customer": False,
+        }
+        if kyc.get("dob"):
+            dob = kyc["dob"]
+            if isinstance(dob, datetime):
+                customer_data["dob"] = dob.strftime("%Y-%m-%d")
+                customer_data["age"] = (datetime.now() - dob).days // 365
+
+    logger.info(
+        f"[SERVICE] get_customer_by_pan - Customer found: {customer_data.get('customer_id')}"
+    )
+    return customer_data
 
 
 def get_customer_by_id(customer_id: str) -> Optional[Dict]:
-    """Get customer data by customer ID."""
+    """
+    Get customer data by customer ID.
+    Customer ID is the normalized phone number (10 digits).
+    """
     logger.info(f"[SERVICE] get_customer_by_id called - customer_id: {customer_id}")
-    if customer_id in CUSTOMER_DATABASE:
-        logger.info(f"[SERVICE] get_customer_by_id - Customer found: {customer_id}")
-        return {"customer_id": customer_id, **CUSTOMER_DATABASE[customer_id]}
-    logger.warning(f"[SERVICE] get_customer_by_id - Customer not found: {customer_id}")
-    return None
+
+    # customer_id is the normalized phone number
+    normalized_phone = _normalize_phone(customer_id)
+
+    # Query users collection
+    user = users_collection.find_one({"phone": normalized_phone})
+
+    if not user:
+        logger.warning(
+            f"[SERVICE] get_customer_by_id - Customer not found: {customer_id}"
+        )
+        return None
+
+    # Get associated KYC data
+    kyc = kycs_collection.find_one({"phone": normalized_phone})
+
+    customer_data = _build_customer_data(user, kyc)
+    logger.info(
+        f"[SERVICE] get_customer_by_id - Customer found: {customer_data['customer_id']}"
+    )
+    return customer_data
 
 
 def verify_kyc_details(name: str, dob: str, address: str, pan: str) -> Dict:
-    """Verify KYC details against customer database."""
+    """Verify KYC details against database."""
     logger.info(f"[SERVICE] verify_kyc_details called - name: {name}, pan: {pan}")
-    pan_upper = pan.upper()
-    customer = get_customer_by_pan(pan_upper)
-    
-    if not customer:
+
+    pan_upper = pan.upper().strip()
+
+    # Query KYC from database
+    kyc = kycs_collection.find_one({"pan": pan_upper})
+
+    if not kyc:
         return {
             "verified": False,
             "message": "PAN not found in our records",
-            "customer_id": None
+            "customer_id": None,
         }
-    
+
+    # Get full customer data
+    customer = get_customer_by_pan(pan_upper)
+
     # Check if details match
     matches = []
-    if customer["name"].lower() == name.lower():
+
+    # Name match (case-insensitive)
+    kyc_name = kyc.get("name", "")
+    if kyc_name and kyc_name.lower() == name.lower():
         matches.append("name")
-    if customer["dob"] == dob:
-        matches.append("dob")
-    if customer["address"].lower() == address.lower():
+
+    # DOB match
+    kyc_dob = kyc.get("dob")
+    if kyc_dob:
+        kyc_dob_str = (
+            kyc_dob.strftime("%Y-%m-%d")
+            if isinstance(kyc_dob, datetime)
+            else str(kyc_dob)
+        )
+        if kyc_dob_str == dob:
+            matches.append("dob")
+
+    # Address match (case-insensitive)
+    kyc_address = kyc.get("address", "")
+    if kyc_address and kyc_address.lower() == address.lower():
         matches.append("address")
-    
+
+    customer_id = customer.get("customer_id") if customer else None
+
     if len(matches) >= 2:  # At least 2 fields should match
-        logger.info(f"[SERVICE] verify_kyc_details - KYC verified. Matched fields: {', '.join(matches)}")
+        logger.info(
+            f"[SERVICE] verify_kyc_details - KYC verified. Matched fields: {', '.join(matches)}"
+        )
         return {
             "verified": True,
             "message": f"KYC verified. Matched fields: {', '.join(matches)}",
-            "customer_id": customer["customer_id"],
-            "customer_data": customer
+            "customer_id": customer_id,
+            "customer_data": customer,
         }
     else:
-        logger.warning(f"[SERVICE] verify_kyc_details - KYC verification failed. Only {len(matches)} field(s) matched")
+        logger.warning(
+            f"[SERVICE] verify_kyc_details - KYC verification failed. Only {len(matches)} field(s) matched"
+        )
         return {
             "verified": False,
             "message": f"KYC verification failed. Only {len(matches)} field(s) matched: {', '.join(matches) if matches else 'none'}",
-            "customer_id": customer["customer_id"]
+            "customer_id": customer_id,
         }
 
 
 def verify_pan(pan: str) -> Dict:
-    """Verify PAN number format and existence."""
+    """Verify PAN number format and existence in database."""
     logger.info(f"[SERVICE] verify_pan called - PAN: {pan}")
+
     pan_upper = pan.upper().strip()
-    
+
     # Basic PAN format validation (5 letters, 4 digits, 1 letter)
     if len(pan_upper) != 10:
         return {
             "verified": False,
             "message": "Invalid PAN format. PAN should be 10 characters long.",
-            "customer_id": None
+            "customer_id": None,
         }
-    
-    if not (pan_upper[:5].isalpha() and pan_upper[5:9].isdigit() and pan_upper[9].isalpha()):
+
+    if not (
+        pan_upper[:5].isalpha() and pan_upper[5:9].isdigit() and pan_upper[9].isalpha()
+    ):
         return {
             "verified": False,
             "message": "Invalid PAN format. Format should be: 5 letters, 4 digits, 1 letter.",
-            "customer_id": None
+            "customer_id": None,
         }
-    
+
+    # Query database
     customer = get_customer_by_pan(pan_upper)
+
     if customer:
-        logger.info(f"[SERVICE] verify_pan - PAN verified successfully for customer: {customer['customer_id']}")
+        logger.info(
+            f"[SERVICE] verify_pan - PAN verified successfully for customer: {customer['customer_id']}"
+        )
         return {
             "verified": True,
             "message": "PAN verified successfully",
             "customer_id": customer["customer_id"],
-            "customer_name": customer["name"]
+            "customer_name": customer.get("name"),
         }
     else:
         logger.warning(f"[SERVICE] verify_pan - PAN not found in database")
         return {
             "verified": False,
             "message": "PAN not found in our database",
-            "customer_id": None
+            "customer_id": None,
         }
 
 
 def verify_phone(phone: str) -> Dict:
     """Verify phone number and send OTP (simulated)."""
     logger.info(f"[SERVICE] verify_phone called - phone: {phone}")
-    phone_clean = phone.strip()
-    
-    # Basic phone validation
-    if not phone_clean.startswith("+91") and not phone_clean.startswith("91"):
-        phone_clean = "+91" + phone_clean.lstrip("+")
-    
-    customer = get_customer_by_phone(phone_clean)
+
+    normalized_phone = _normalize_phone(phone)
+    display_phone = _format_phone_for_display(normalized_phone)
+
+    customer = get_customer_by_phone(normalized_phone)
+
     if customer:
         # Simulate OTP generation
         otp = "123456"  # In real system, this would be randomly generated
-        logger.info(f"[SERVICE] verify_phone - OTP sent to {phone_clean} for customer: {customer['customer_id']}")
+        logger.info(
+            f"[SERVICE] verify_phone - OTP sent to {display_phone} for customer: {customer['customer_id']}"
+        )
         return {
             "verified": True,
-            "message": f"OTP sent to {phone_clean}. OTP: {otp} (for testing)",
+            "message": f"OTP sent to {display_phone}. OTP: {otp} (for testing)",
             "customer_id": customer["customer_id"],
-            "customer_name": customer["name"],
-            "otp": otp
+            "customer_name": customer.get("name"),
+            "otp": otp,
         }
     else:
         logger.warning(f"[SERVICE] verify_phone - Phone number not found in database")
         return {
             "verified": False,
-            "message": f"Phone number {phone_clean} not found in our database",
-            "customer_id": None
+            "message": f"Phone number {display_phone} not found in our database",
+            "customer_id": None,
         }
 
 
 def verify_otp(phone: str, otp: str) -> Dict:
-    """Verify OTP (simulated - accepts any 6-digit OTP for testing)."""
+    """Verify OTP (simulated - only accepts 123456 for testing)."""
     logger.info(f"[SERVICE] verify_otp called - phone: {phone}, OTP: {otp}")
-    if len(otp) == 6 and otp.isdigit():
+
+    # Only accept the fixed test OTP: 123456
+    if otp == "123456":
         customer = get_customer_by_phone(phone)
         if customer:
-            logger.info(f"[SERVICE] verify_otp - OTP verified successfully for customer: {customer['customer_id']}")
+            logger.info(
+                f"[SERVICE] verify_otp - OTP verified successfully for customer: {customer['customer_id']}"
+            )
             return {
                 "verified": True,
                 "message": "Phone number verified successfully",
-                "customer_id": customer["customer_id"]
+                "customer_id": customer["customer_id"],
             }
-    logger.warning(f"[SERVICE] verify_otp - Invalid OTP")
+        else:
+            logger.warning(
+                f"[SERVICE] verify_otp - Customer not found for phone: {phone}"
+            )
+            return {
+                "verified": False,
+                "message": "Phone number not found in our database",
+            }
+
+    logger.warning(f"[SERVICE] verify_otp - Invalid OTP: {otp}")
     return {
         "verified": False,
-        "message": "Invalid OTP"
+        "message": "Invalid OTP. Please enter the correct OTP: 123456",
     }
 
 
 def fetch_credit_score(customer_id: str) -> Dict:
-    """Fetch credit score from mock credit bureau API."""
+    """Fetch credit score from database (kycs collection)."""
     logger.info(f"[SERVICE] fetch_credit_score called - customer_id: {customer_id}")
-    customer = get_customer_by_id(customer_id)
-    if customer:
-        score = customer["credit_score"]
-        logger.info(f"[SERVICE] fetch_credit_score - Credit score retrieved: {score}/900 for customer: {customer_id}")
+
+    # customer_id is the normalized phone number
+    normalized_phone = _normalize_phone(customer_id)
+
+    # Query KYC collection for credit score
+    kyc = kycs_collection.find_one({"phone": normalized_phone})
+
+    if kyc and kyc.get("credit_score") is not None:
+        score = kyc["credit_score"]
+        logger.info(
+            f"[SERVICE] fetch_credit_score - Credit score retrieved: {score}/900 for customer: {customer_id}"
+        )
         return {
             "success": True,
             "customer_id": customer_id,
             "credit_score": score,
             "max_score": 900,
-            "message": f"Credit score retrieved: {score}/900"
+            "message": f"Credit score retrieved: {score}/900",
         }
-    logger.warning(f"[SERVICE] fetch_credit_score - Customer not found: {customer_id}")
+
+    # Try to get customer first to verify they exist
+    customer = get_customer_by_id(customer_id)
+    if not customer:
+        logger.warning(
+            f"[SERVICE] fetch_credit_score - Customer not found: {customer_id}"
+        )
+        return {"success": False, "message": "Customer not found", "credit_score": None}
+
+    logger.warning(
+        f"[SERVICE] fetch_credit_score - Credit score not available for customer: {customer_id}"
+    )
     return {
         "success": False,
-        "message": "Customer not found",
-        "credit_score": None
+        "message": "Credit score not available",
+        "credit_score": None,
     }
 
 
 def get_pre_approved_limit(customer_id: str) -> Dict:
-    """Get pre-approved loan limit from offer mart."""
+    """Get pre-approved loan limit from users collection."""
     logger.info(f"[SERVICE] get_pre_approved_limit called - customer_id: {customer_id}")
+
     customer = get_customer_by_id(customer_id)
+
     if customer:
-        limit = customer["pre_approved_limit"]
-        logger.info(f"[SERVICE] get_pre_approved_limit - Pre-approved limit: ₹{limit:,} for customer: {customer_id}")
+        limit = customer.get("pre_approved_limit", 0)
+        logger.info(
+            f"[SERVICE] get_pre_approved_limit - Pre-approved limit: ₹{limit:,} for customer: {customer_id}"
+        )
         return {
             "success": True,
             "customer_id": customer_id,
             "pre_approved_limit": limit,
-            "message": f"Pre-approved limit: ₹{limit:,}"
+            "message": f"Pre-approved limit: ₹{limit:,}",
         }
-    logger.warning(f"[SERVICE] get_pre_approved_limit - Customer not found: {customer_id}")
+
+    logger.warning(
+        f"[SERVICE] get_pre_approved_limit - Customer not found: {customer_id}"
+    )
     return {
         "success": False,
         "message": "Customer not found",
-        "pre_approved_limit": None
+        "pre_approved_limit": None,
     }
 
 
 def calculate_emi(loan_amount: float, tenure_months: int, interest_rate: float) -> Dict:
     """Calculate EMI (Equated Monthly Installment)."""
-    logger.info(f"[SERVICE] calculate_emi called - amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%")
+    logger.info(
+        f"[SERVICE] calculate_emi called - amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%"
+    )
+
     if loan_amount <= 0 or tenure_months <= 0 or interest_rate <= 0:
         logger.warning(f"[SERVICE] calculate_emi - Invalid input parameters")
-        return {
-            "success": False,
-            "message": "Invalid input parameters"
-        }
-    
+        return {"success": False, "message": "Invalid input parameters"}
+
     monthly_rate = interest_rate / (12 * 100)
-    emi = loan_amount * monthly_rate * ((1 + monthly_rate) ** tenure_months) / (((1 + monthly_rate) ** tenure_months) - 1)
+    emi = (
+        loan_amount
+        * monthly_rate
+        * ((1 + monthly_rate) ** tenure_months)
+        / (((1 + monthly_rate) ** tenure_months) - 1)
+    )
     total_amount = emi * tenure_months
     total_interest = total_amount - loan_amount
-    
-    logger.info(f"[SERVICE] calculate_emi - Calculated EMI: ₹{round(emi, 2):,.2f}, Total: ₹{round(total_amount, 2):,.2f}")
+
+    logger.info(
+        f"[SERVICE] calculate_emi - Calculated EMI: ₹{round(emi, 2):,.2f}, Total: ₹{round(total_amount, 2):,.2f}"
+    )
     return {
         "success": True,
         "loan_amount": loan_amount,
@@ -443,13 +472,44 @@ def calculate_emi(loan_amount: float, tenure_months: int, interest_rate: float) 
         "interest_rate": interest_rate,
         "emi": round(emi, 2),
         "total_amount": round(total_amount, 2),
-        "total_interest": round(total_interest, 2)
+        "total_interest": round(total_interest, 2),
     }
 
 
 def get_interest_rate(credit_score: int, loan_amount: float) -> float:
-    """Get interest rate based on credit score and loan amount."""
-    logger.info(f"[SERVICE] get_interest_rate called - credit_score: {credit_score}, loan_amount: ₹{loan_amount:,.0f}")
+    """
+    Get interest rate based on credit score and loan amount.
+    Uses offer_template collection if available, falls back to default rates.
+    """
+    logger.info(
+        f"[SERVICE] get_interest_rate called - credit_score: {credit_score}, loan_amount: ₹{loan_amount:,.0f}"
+    )
+
+    # Try to find matching offer template from database
+    offer = offer_template_collection.find_one(
+        {
+            "active": True,
+            "min_credit_score": {"$lte": credit_score},
+            "max_credit_score": {"$gte": credit_score},
+            "min_amount": {"$lte": loan_amount},
+            "max_amount": {"$gte": loan_amount},
+        }
+    )
+
+    if offer and offer.get("base_rate") is not None:
+        rate = offer["base_rate"]
+        logger.info(f"[SERVICE] get_interest_rate - Rate from offer template: {rate}%")
+        return round(rate, 2)
+
+    # Fall back to default interest rate calculation
+    # Interest rates based on credit score
+    interest_rates = {
+        "excellent": {"min": 10.5, "max": 12.0},  # 750+
+        "good": {"min": 12.5, "max": 14.5},  # 700-749
+        "fair": {"min": 15.0, "max": 18.0},  # 650-699
+        "poor": {"min": 18.5, "max": 24.0},  # <650
+    }
+
     if credit_score >= 750:
         category = "excellent"
     elif credit_score >= 700:
@@ -458,8 +518,9 @@ def get_interest_rate(credit_score: int, loan_amount: float) -> float:
         category = "fair"
     else:
         category = "poor"
-    
-    rate_range = INTEREST_RATES[category]
+
+    rate_range = interest_rates[category]
+
     # Higher loan amounts get slightly better rates
     if loan_amount >= 1000000:
         rate = rate_range["min"]
@@ -467,51 +528,71 @@ def get_interest_rate(credit_score: int, loan_amount: float) -> float:
         rate = (rate_range["min"] + rate_range["max"]) / 2
     else:
         rate = rate_range["max"]
-    
+
     rate = round(rate, 2)
-    logger.info(f"[SERVICE] get_interest_rate - Calculated rate: {rate}% (category: {category})")
+    logger.info(
+        f"[SERVICE] get_interest_rate - Calculated rate: {rate}% (category: {category})"
+    )
     return rate
 
 
-def check_eligibility(customer_id: str, requested_amount: float, tenure_months: int = 60) -> Dict:
+def check_eligibility(
+    customer_id: str, requested_amount: float, tenure_months: int = 60
+) -> Dict:
     """
     Check loan eligibility based on risk rules.
-    
+
     Rules:
     1. Instant Approval: If requested_amount <= pre_approved_limit
     2. Conditional Approval: If requested_amount <= 2 * pre_approved_limit (requires salary slip)
     3. Rejection: If requested_amount > 2 * pre_approved_limit OR credit_score < 700
     """
-    logger.info(f"[SERVICE] check_eligibility called - customer_id: {customer_id}, amount: ₹{requested_amount:,.0f}, tenure: {tenure_months} months")
+    logger.info(
+        f"[SERVICE] check_eligibility called - customer_id: {customer_id}, amount: ₹{requested_amount:,.0f}, tenure: {tenure_months} months"
+    )
+
     customer = get_customer_by_id(customer_id)
+
     if not customer:
-        logger.warning(f"[SERVICE] check_eligibility - Customer not found: {customer_id}")
+        logger.warning(
+            f"[SERVICE] check_eligibility - Customer not found: {customer_id}"
+        )
         return {
             "eligible": False,
             "status": "rejected",
             "message": "Customer not found",
-            "reason": "Customer ID invalid"
+            "reason": "Customer ID invalid",
         }
-    
-    credit_score = customer["credit_score"]
-    pre_approved_limit = customer["pre_approved_limit"]
-    salary = customer["salary"]
-    
+
+    credit_score = customer.get("credit_score", 0)
+    pre_approved_limit = customer.get("pre_approved_limit", 0)
+    salary = customer.get("salary")
+
+    # If credit score not in customer data, fetch from KYC
+    if not credit_score:
+        credit_result = fetch_credit_score(customer_id)
+        if credit_result.get("success"):
+            credit_score = credit_result["credit_score"]
+
     # Rule 1: Rejection if credit score < 700
     if credit_score < 700:
-        logger.warning(f"[SERVICE] check_eligibility - REJECTED: Credit score {credit_score} < 700")
+        logger.warning(
+            f"[SERVICE] check_eligibility - REJECTED: Credit score {credit_score} < 700"
+        )
         return {
             "eligible": False,
             "status": "rejected",
             "message": "Loan application rejected",
             "reason": f"Credit score {credit_score} is below minimum requirement of 700",
             "credit_score": credit_score,
-            "pre_approved_limit": pre_approved_limit
+            "pre_approved_limit": pre_approved_limit,
         }
-    
+
     # Rule 2: Rejection if requested amount > 2 * pre_approved_limit
-    if requested_amount > 2 * pre_approved_limit:
-        logger.warning(f"[SERVICE] check_eligibility - REJECTED: Amount ₹{requested_amount:,} > 2x limit ₹{2 * pre_approved_limit:,}")
+    if pre_approved_limit > 0 and requested_amount > 2 * pre_approved_limit:
+        logger.warning(
+            f"[SERVICE] check_eligibility - REJECTED: Amount ₹{requested_amount:,} > 2x limit ₹{2 * pre_approved_limit:,}"
+        )
         return {
             "eligible": False,
             "status": "rejected",
@@ -519,15 +600,17 @@ def check_eligibility(customer_id: str, requested_amount: float, tenure_months: 
             "reason": f"Requested amount ₹{requested_amount:,} exceeds maximum eligible limit of ₹{2 * pre_approved_limit:,}",
             "requested_amount": requested_amount,
             "pre_approved_limit": pre_approved_limit,
-            "max_eligible": 2 * pre_approved_limit
+            "max_eligible": 2 * pre_approved_limit,
         }
-    
+
     # Rule 3: Instant Approval if requested_amount <= pre_approved_limit
     if requested_amount <= pre_approved_limit:
         interest_rate = get_interest_rate(credit_score, requested_amount)
         emi_result = calculate_emi(requested_amount, tenure_months, interest_rate)
-        
-        logger.info(f"[SERVICE] check_eligibility - INSTANT APPROVAL: Amount ₹{requested_amount:,} <= limit ₹{pre_approved_limit:,}")
+
+        logger.info(
+            f"[SERVICE] check_eligibility - INSTANT APPROVAL: Amount ₹{requested_amount:,} <= limit ₹{pre_approved_limit:,}"
+        )
         return {
             "eligible": True,
             "status": "approved",
@@ -538,18 +621,41 @@ def check_eligibility(customer_id: str, requested_amount: float, tenure_months: 
             "interest_rate": interest_rate,
             "tenure_months": tenure_months,
             "emi": emi_result["emi"],
-            "approval_type": "instant"
+            "approval_type": "instant",
         }
-    
+
     # Rule 4: Conditional Approval (requires salary slip)
-    # Check if EMI <= 50% of salary
+    # If salary not available, approve conditionally without EMI-to-salary check
     interest_rate = get_interest_rate(credit_score, requested_amount)
     emi_result = calculate_emi(requested_amount, tenure_months, interest_rate)
     emi = emi_result["emi"]
+
+    if salary is None:
+        # Salary not in database - approve conditionally, require salary slip for verification
+        logger.info(
+            f"[SERVICE] check_eligibility - CONDITIONAL APPROVAL: Salary verification required"
+        )
+        return {
+            "eligible": True,
+            "status": "conditionally_approved",
+            "message": "Loan conditionally approved - salary slip verification required",
+            "requested_amount": requested_amount,
+            "pre_approved_limit": pre_approved_limit,
+            "credit_score": credit_score,
+            "interest_rate": interest_rate,
+            "tenure_months": tenure_months,
+            "emi": emi,
+            "approval_type": "conditional",
+            "requires_salary_slip": True,
+        }
+
+    # Check if EMI <= 50% of salary
     max_allowable_emi = salary * 0.5
-    
+
     if emi <= max_allowable_emi:
-        logger.info(f"[SERVICE] check_eligibility - CONDITIONAL APPROVAL: EMI ₹{emi:,.2f} <= 50% salary (₹{max_allowable_emi:,.2f})")
+        logger.info(
+            f"[SERVICE] check_eligibility - CONDITIONAL APPROVAL: EMI ₹{emi:,.2f} <= 50% salary (₹{max_allowable_emi:,.2f})"
+        )
         return {
             "eligible": True,
             "status": "conditionally_approved",
@@ -563,10 +669,12 @@ def check_eligibility(customer_id: str, requested_amount: float, tenure_months: 
             "salary": salary,
             "max_allowable_emi": max_allowable_emi,
             "approval_type": "conditional",
-            "requires_salary_slip": True
+            "requires_salary_slip": True,
         }
     else:
-        logger.warning(f"[SERVICE] check_eligibility - REJECTED: EMI ₹{emi:,.2f} > 50% salary (₹{max_allowable_emi:,.2f})")
+        logger.warning(
+            f"[SERVICE] check_eligibility - REJECTED: EMI ₹{emi:,.2f} > 50% salary (₹{max_allowable_emi:,.2f})"
+        )
         return {
             "eligible": False,
             "status": "rejected",
@@ -575,53 +683,245 @@ def check_eligibility(customer_id: str, requested_amount: float, tenure_months: 
             "requested_amount": requested_amount,
             "emi": emi,
             "salary": salary,
-            "max_allowable_emi": max_allowable_emi
+            "max_allowable_emi": max_allowable_emi,
         }
 
 
 def verify_salary_slip(customer_id: str, salary_slip_uploaded: bool = True) -> Dict:
     """Simulate salary slip verification (accepts any upload for testing)."""
-    logger.info(f"[SERVICE] verify_salary_slip called - customer_id: {customer_id}, uploaded: {salary_slip_uploaded}")
+    logger.info(
+        f"[SERVICE] verify_salary_slip called - customer_id: {customer_id}, uploaded: {salary_slip_uploaded}"
+    )
+
     customer = get_customer_by_id(customer_id)
+
     if not customer:
-        logger.warning(f"[SERVICE] verify_salary_slip - Customer not found: {customer_id}")
-        return {
-            "verified": False,
-            "message": "Customer not found"
-        }
-    
+        logger.warning(
+            f"[SERVICE] verify_salary_slip - Customer not found: {customer_id}"
+        )
+        return {"verified": False, "message": "Customer not found"}
+
     if salary_slip_uploaded:
-        logger.info(f"[SERVICE] verify_salary_slip - Salary slip verified successfully for customer: {customer_id}")
-        return {
+        # Get salary from customer data or return a default verified response
+        salary = customer.get("salary")
+        logger.info(
+            f"[SERVICE] verify_salary_slip - Salary slip verified successfully for customer: {customer_id}"
+        )
+        result = {
             "verified": True,
             "message": "Salary slip verified successfully",
             "customer_id": customer_id,
-            "verified_salary": customer["salary"]
         }
+        if salary:
+            result["verified_salary"] = salary
+        return result
+
     logger.warning(f"[SERVICE] verify_salary_slip - Salary slip not uploaded")
+    return {"verified": False, "message": "Salary slip not uploaded"}
+
+
+def get_offers_for_credit_score(credit_score: int, loan_amount: float = None) -> Dict:
+    """
+    Get available loan offers from offer_template collection based on credit score.
+
+    Args:
+        credit_score: Customer's credit score (out of 900)
+        loan_amount: Optional loan amount to filter offers by
+
+    Returns:
+        Dict with matching offers and their details
+    """
+    logger.info(
+        f"[SERVICE] get_offers_for_credit_score called - credit_score: {credit_score}, loan_amount: {loan_amount}"
+    )
+
+    # Build query for matching offers
+    query = {
+        "active": True,
+        "min_credit_score": {"$lte": credit_score},
+        "max_credit_score": {"$gte": credit_score},
+    }
+
+    # Add loan amount filter if provided
+    if loan_amount:
+        query["min_amount"] = {"$lte": loan_amount}
+        query["max_amount"] = {"$gte": loan_amount}
+
+    # Fetch matching offers sorted by base_rate (best rate first)
+    offers = list(offer_template_collection.find(query).sort("base_rate", 1))
+
+    if not offers:
+        # Try without amount filter if no matches
+        query_no_amount = {
+            "active": True,
+            "min_credit_score": {"$lte": credit_score},
+            "max_credit_score": {"$gte": credit_score},
+        }
+        offers = list(
+            offer_template_collection.find(query_no_amount).sort("base_rate", 1)
+        )
+
+    if offers:
+        formatted_offers = []
+        for offer in offers:
+            formatted_offer = {
+                "name": offer.get("name", "Personal Loan"),
+                "min_credit_score": offer.get("min_credit_score"),
+                "max_credit_score": offer.get("max_credit_score"),
+                "min_amount": offer.get("min_amount"),
+                "max_amount": offer.get("max_amount"),
+                "min_tenure_months": offer.get("min_tenure_months", 12),
+                "max_tenure_months": offer.get("max_tenure_months", 60),
+                "base_rate": offer.get("base_rate"),
+                "processing_fee_pct": offer.get("processing_fee_pct", 3.5),
+            }
+            formatted_offers.append(formatted_offer)
+
+        # Get the best offer (lowest rate)
+        best_offer = formatted_offers[0] if formatted_offers else None
+
+        logger.info(
+            f"[SERVICE] get_offers_for_credit_score - Found {len(formatted_offers)} matching offers"
+        )
+        return {
+            "success": True,
+            "credit_score": credit_score,
+            "total_offers": len(formatted_offers),
+            "best_offer": best_offer,
+            "all_offers": formatted_offers,
+            "message": f"Found {len(formatted_offers)} offers for credit score {credit_score}",
+        }
+
+    # Fallback: Return default offer based on credit score
+    logger.info(
+        f"[SERVICE] get_offers_for_credit_score - No offers in DB, using default rates"
+    )
+
+    # Determine rate category
+    if credit_score >= 750:
+        base_rate = 10.99
+        category = "excellent"
+    elif credit_score >= 700:
+        base_rate = 12.5
+        category = "good"
+    elif credit_score >= 650:
+        base_rate = 15.0
+        category = "fair"
+    else:
+        base_rate = 18.0
+        category = "poor"
+
+    default_offer = {
+        "name": f"Personal Loan - {category.title()} Credit",
+        "min_credit_score": credit_score - 50,
+        "max_credit_score": credit_score + 50,
+        "min_amount": 50000,
+        "max_amount": 5000000,
+        "min_tenure_months": 12,
+        "max_tenure_months": 60,
+        "base_rate": base_rate,
+        "processing_fee_pct": 3.5,
+    }
+
     return {
-        "verified": False,
-        "message": "Salary slip not uploaded"
+        "success": True,
+        "credit_score": credit_score,
+        "total_offers": 1,
+        "best_offer": default_offer,
+        "all_offers": [default_offer],
+        "message": f"Default offer for credit score {credit_score} (category: {category})",
     }
 
 
-def generate_sanction_letter(customer_id: str, loan_amount: float, tenure_months: int, interest_rate: float) -> Dict:
+def get_loan_charges_info() -> Dict:
+    """
+    Get all loan charges and fees information.
+
+    Returns:
+        Dict with all applicable charges
+    """
+    logger.info(f"[SERVICE] get_loan_charges_info called")
+
+    charges = {
+        "interest_rate": "10.99% p.a. onwards",
+        "processing_fee": "Up to 3.5% of loan amount + GST",
+        "penal_charges": "3% per month on defaulted amount (Annualized 36%)",
+        "cheque_dishonour": "₹600 per instrument per instance",
+        "mandate_rejection": "₹450",
+        "statement_charges": "₹250 + GST for physical copy (digital free)",
+        "loan_cancellation": "2% of loan amount OR ₹5,750 (whichever is higher)",
+        "annual_maintenance": "0.25% of dropline amount OR ₹1,000 (whichever is higher) - payable at end of 13th month",
+        "prepayment": "Allowed after 12 months with minimal charges",
+    }
+
+    logger.info(f"[SERVICE] get_loan_charges_info completed")
+    return {"success": True, "charges": charges}
+
+
+def get_required_documents() -> Dict:
+    """
+    Get list of required documents for loan application.
+
+    Returns:
+        Dict with document requirements categorized by approval type
+    """
+    logger.info(f"[SERVICE] get_required_documents called")
+
+    documents = {
+        "always_required": {
+            "photo_identity_proof": {
+                "description": "Any ONE of the following",
+                "options": ["Voter ID", "Passport", "Driving License", "Aadhaar Card"],
+            },
+            "address_proof": {
+                "description": "Any ONE of the following",
+                "options": ["Voter ID", "Passport", "Driving License", "Aadhaar Card"],
+            },
+            "bank_statement": {
+                "description": "Primary bank statement (salary account) for last 3 months"
+            },
+        },
+        "conditional_only": {
+            "description": "Required ONLY for conditional approvals (when loan amount > pre-approved limit)",
+            "salary_slips": {"description": "Salary slips for last 2 months"},
+            "employment_certificate": {
+                "description": "Certificate confirming at least 1 year of continuous employment"
+            },
+        },
+        "notes": [
+            "Same document can serve as both identity and address proof",
+            "Salary slips and employment certificate are only required for high-risk/conditional cases",
+            "For instant approvals (loan ≤ pre-approved limit), only ID, address proof, and bank statement are needed",
+        ],
+    }
+
+    logger.info(f"[SERVICE] get_required_documents completed")
+    return {"success": True, "documents": documents}
+
+
+def generate_sanction_letter(
+    customer_id: str, loan_amount: float, tenure_months: int, interest_rate: float
+) -> Dict:
     """Generate sanction letter summary (text format for now)."""
-    logger.info(f"[SERVICE] generate_sanction_letter called - customer_id: {customer_id}, amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%")
+    logger.info(
+        f"[SERVICE] generate_sanction_letter called - customer_id: {customer_id}, amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%"
+    )
+
     customer = get_customer_by_id(customer_id)
+
     if not customer:
-        logger.error(f"[SERVICE] generate_sanction_letter - Customer not found: {customer_id}")
-        return {
-            "success": False,
-            "message": "Customer not found"
-        }
-    
+        logger.error(
+            f"[SERVICE] generate_sanction_letter - Customer not found: {customer_id}"
+        )
+        return {"success": False, "message": "Customer not found"}
+
     emi_result = calculate_emi(loan_amount, tenure_months, interest_rate)
-    
+    customer_name = customer.get("name", "Valued Customer")
+
     sanction_letter = {
         "success": True,
         "customer_id": customer_id,
-        "customer_name": customer["name"],
+        "customer_name": customer_name,
         "sanction_date": datetime.now().strftime("%Y-%m-%d"),
         "loan_amount": loan_amount,
         "tenure_months": tenure_months,
@@ -634,12 +934,12 @@ def generate_sanction_letter(customer_id: str, loan_amount: float, tenure_months
             "Interest rate is fixed for the entire tenure",
             "Prepayment charges apply as per policy",
             "Default in payment will attract penalty charges",
-            "All disputes subject to jurisdiction of Mumbai courts"
+            "All disputes subject to jurisdiction of Mumbai courts",
         ],
         "summary": f"""
 SANCTION LETTER
 
-Dear {customer["name"]},
+Dear {customer_name},
 
 We are pleased to inform you that your Personal Loan application has been approved.
 
@@ -656,8 +956,10 @@ Please contact us to complete the disbursement process.
 
 Best Regards,
 Tata Capital Personal Loans Team
-        """.strip()
+        """.strip(),
     }
-    
-    logger.info(f"[SERVICE] generate_sanction_letter - Sanction letter generated successfully for customer: {customer_id}")
+
+    logger.info(
+        f"[SERVICE] generate_sanction_letter - Sanction letter generated successfully for customer: {customer_id}"
+    )
     return sanction_letter

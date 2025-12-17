@@ -29,6 +29,9 @@ db: Database = client.get_default_database()
 # Collection references
 sessions_collection: Collection = db["sessions"]
 conversations_collection: Collection = db["conversations"]
+users_collection: Collection = db["users"]
+kycs_collection: Collection = db["kycs"]
+offer_template_collection: Collection = db["offer_template"]
 
 # Create indexes for better query performance
 def create_indexes():
