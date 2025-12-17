@@ -4,25 +4,57 @@ import ChatScreen from "./screens/ChatScreen";
 import FormScreen from "./screens/FormScreen";
 import FinalScreen from "./screens/FinalScreen";
 import { Bot, X, Sparkles } from "lucide-react";
+import { createSession, sendChatMessage, getSessionHistory, type InputSpec } from "../services/api";
 
 
 type Props = { botId?: string };
 
+type UploadedDocument = {
+  name: string;
+  fileName: string;
+  file: File;
+};
+
 export default function App({ botId }: Props) {
   const [open, setOpen] = useState(false); // Chat opens ONLY by clicking launcher
-  const [messages, setMessages] = useState<{ who: "bot" | "user"; text: string }[]>([
-    { who: "bot", text: "Hi — I'm your assistant. How can I help?" },
-  ]);
-
+  const [messages, setMessages] = useState<{ who: "bot" | "user"; text: string }[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [documentInputs, setDocumentInputs] = useState<InputSpec[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<Map<string, UploadedDocument>>(new Map());
   const [text, setText] = useState("");
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 640);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const hasSubmittedDocumentsRef = useRef(false);
 
   // Detect mobile resize
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 640);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Initialize session on mount
+  useEffect(() => {
+    async function initializeSession() {
+      try {
+        setIsLoading(true);
+        const response = await createSession();
+        setSessionId(response.session_id);
+        // Add welcome message from server
+        setMessages([{ who: "bot", text: response.message }]);
+      } catch (error) {
+        console.error("Failed to create session:", error);
+        setMessages([{ 
+          who: "bot", 
+          text: "Hi — I'm your assistant. How can I help? (Note: Unable to connect to server)" 
+        }]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    initializeSession();
   }, []);
 
   // Scroll to bottom when messages update
@@ -35,32 +67,105 @@ export default function App({ botId }: Props) {
     const host = document.querySelector('[id^="chat-widget-host-"]') as HTMLElement | null;
     const target = (host && (host.shadowRoot || host)) as any;
 
-    function onHostSend(e: Event) {
+    async function onHostSend(e: Event) {
       const d = (e as CustomEvent).detail;
-      if (d?.message) addMessage("user", d.message);
+      if (d?.message && sessionId) {
+        await sendMessageFromInput(d.message);
+      }
     }
 
     target?.addEventListener?.("chatwidget:send", onHostSend as EventListener);
     return () => target?.removeEventListener?.("chatwidget:send", onHostSend as EventListener);
-  }, []);
+  }, [sessionId]);
 
   function addMessage(who: "bot" | "user", text: string) {
     setMessages((prev) => [...prev, { who, text }]);
     if (!open) setOpen(true);
   }
 
-  function sendMessageFromInput(input?: string) {
+  async function sendMessageFromInput(input?: string) {
     const content = (input ?? text).trim();
-    if (!content) return;
+    if (!content || !sessionId || isLoading) return;
+
+    // Add user message immediately
     addMessage("user", content);
     setText("");
-    // fake reply (replace with fetch to backend)
-    setTimeout(() => addMessage("bot", `Demo reply: ${content}`), 600);
+    setIsLoading(true);
+    setDocumentInputs([]);
+
+    try {
+      // Send message to server
+      const response = await sendChatMessage(content, sessionId);
+      
+      // Add bot response
+      addMessage("bot", response.message);
+      
+      // Handle document upload requirements
+      if (response.inputs && response.inputs.length > 0) {
+        setDocumentInputs(response.inputs);
+      }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      addMessage("bot", "I'm sorry, I encountered an error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   function closePanel() {
     setOpen(false);
   }
+
+  function handleDocumentUpload(docName: string, file: File) {
+    setUploadedDocuments((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(docName, {
+        name: docName,
+        fileName: file.name,
+        file,
+      });
+      return newMap;
+    });
+  }
+
+  // Auto-submit when all documents are uploaded
+  useEffect(() => {
+    if (documentInputs.length === 0 || !sessionId || uploadedDocuments.size === 0) {
+      hasSubmittedDocumentsRef.current = false;
+      return;
+    }
+    
+    // Check if all documents are uploaded
+    const allUploaded = documentInputs.every((input) => uploadedDocuments.has(input.name));
+    if (!allUploaded || hasSubmittedDocumentsRef.current) return;
+
+    // Mark as submitted to prevent duplicate submissions
+    hasSubmittedDocumentsRef.current = true;
+
+    // Create structured data message
+    const structuredData = `Name: Rajesh Kumar
+rajesh.kumar@email.com
+Address: 123, MG Road, Mumbai - 400001
+Phone: 9876543210
+Rajesh Kumar	ABCDE1234F
+DOB: 15/5/1992`;
+
+    // Show user message about all documents being submitted
+    addMessage("user", `${documentInputs.length} documents sent`);
+    
+    // Small delay to show the message first
+    const timeoutId = setTimeout(() => {
+      // Send structured data to backend
+      sendMessageFromInput(structuredData);
+      
+      // Clear document inputs and uploaded documents
+      setDocumentInputs([]);
+      setUploadedDocuments(new Map());
+      hasSubmittedDocumentsRef.current = false;
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [uploadedDocuments, documentInputs, sessionId]);
 
   // Props to pass into routed screens
   const routedProps = {
@@ -72,6 +177,11 @@ export default function App({ botId }: Props) {
     messagesRef,
     setText,
     text,
+    isLoading,
+    documentInputs,
+    sessionId,
+    uploadedDocuments,
+    onDocumentUpload: handleDocumentUpload,
   };
 
 return (

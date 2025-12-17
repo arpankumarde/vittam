@@ -1,6 +1,20 @@
 import { useLocation, useNavigate } from "react-router";
 
-export default function FinalScreen() {
+type ScreenProps = {
+  botId?: string;
+  messages?: { who: "bot" | "user"; text: string }[];
+  addMessage?: (who: "bot" | "user", text: string) => void;
+  sendMessage?: (text?: string) => void;
+  closePanel?: () => void;
+  messagesRef?: React.RefObject<HTMLDivElement>;
+  text?: string;
+  setText?: (s: string) => void;
+  isLoading?: boolean;
+  documentInputs?: any[];
+  sessionId?: string | null;
+};
+
+export default function FinalScreen(props?: ScreenProps) {
   const { state } = useLocation();
   const nav = useNavigate();
   const name = state?.name || "Customer";

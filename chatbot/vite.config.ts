@@ -8,13 +8,21 @@ export default defineConfig({
       entry: path.resolve(__dirname, "src/entry.ts"),
       name: "ChatWidgetBundle",
       formats: ["iife"],
-      fileName: () => "chat-widget.js"
+      fileName: () => "chat-widget.js",
     },
     rollupOptions: {
       output: {
-        inlineDynamicImports: true
-      }
+        inlineDynamicImports: true,
+      },
     },
-    minify: "esbuild"
-  }
+    minify: "esbuild",
+  },
+  server: {
+    port: 5173,
+    host: true,
+  },
+  preview: {
+    port: 5173,
+    host: true,
+  },
 });
