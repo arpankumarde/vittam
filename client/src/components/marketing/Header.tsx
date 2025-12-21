@@ -42,8 +42,9 @@ export const Header = () => {
                variant="ghost" 
                size="icon" 
                className="md:hidden"
-               onClick={() => setMobileMenuOpen(true)}
+               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                aria-label="Open menu"
+               type="button"
              >
                 <Menu className="h-5 w-5" />
              </Button>
@@ -51,8 +52,8 @@ export const Header = () => {
        </div>
 
        {/* Mobile Menu */}
-       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-         <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} modal={true}>
+         <SheetContent side="right" className="w-[300px] sm:w-[400px] z-[100]">
            <SheetHeader>
              <SheetTitle>Menu</SheetTitle>
            </SheetHeader>
