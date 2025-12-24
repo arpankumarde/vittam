@@ -43,17 +43,17 @@ export const BentoGridItem = ({
       onClick={onClick}
     >
       <div className="absolute top-0 right-0 p-6 opacity-5 group-hover/bento:opacity-10 transition-opacity">
-         {icon}
+        {icon}
       </div>
-      
+
       <div className="h-full flex flex-col">
         {header}
         <div className="mt-auto group-hover/bento:translate-x-2 transition duration-200">
-          <div className="mb-2 text-primary opacity-80">
-            {icon}
-          </div>
-          <div className="font-bold text-lg text-card-foreground mb-2">
-            {title}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="text-primary opacity-80">{icon}</div>
+            <div className="font-bold text-lg text-card-foreground">
+              {title}
+            </div>
           </div>
           <div className="font-normal text-muted-foreground text-sm leading-relaxed">
             {description}
@@ -63,4 +63,3 @@ export const BentoGridItem = ({
     </div>
   );
 };
-

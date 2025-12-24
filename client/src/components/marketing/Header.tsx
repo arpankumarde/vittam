@@ -95,7 +95,7 @@ export const Header = () => {
           <SheetHeader className="sr-only">
             <SheetTitle>Menu</SheetTitle>
           </SheetHeader>
-          <nav className="flex flex-col gap-4 mt-8 px-4">
+          <nav className="flex flex-col gap-1 mt-8 px-4">
             <Link
               href="/solutions"
               className="text-base font-medium text-muted-foreground hover:text-primary transition-colors py-2"

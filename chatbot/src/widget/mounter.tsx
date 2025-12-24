@@ -29,7 +29,9 @@ export function mountWidget(config: Config = {}) {
   } = config;
 
   hostEl = document.createElement("div");
-  hostEl.id = `chat-widget-host-${botId}-${Math.random().toString(36).slice(2, 8)}`;
+  hostEl.id = `chat-widget-host-${botId}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
 
   // base host styles
   hostEl.style.position = "fixed";
@@ -42,77 +44,89 @@ export function mountWidget(config: Config = {}) {
   // hostEl.style.pointerEvents = "auto";
   const isMobile = window.innerWidth <= 640;
 
-if (isMobile) {
-  hostEl.style.inset = "0";
-  hostEl.style.width = "100vw";
-  hostEl.style.height = "100vh";
-  hostEl.style.borderRadius = "0";
-} else {
-  hostEl.style.width = `${width}px`;   // 360px
-  hostEl.style.height = `${height}px`; // 520px
-  hostEl.style.right = "20px";
-  hostEl.style.bottom = "20px";
-}
-
+  if (isMobile) {
+    hostEl.style.inset = "0";
+    hostEl.style.width = "100dvw";
+    hostEl.style.height = "100dvh";
+    hostEl.style.borderRadius = "0";
+  } else {
+    hostEl.style.width = `${width}px`; // 360px
+    hostEl.style.height = `${height}px`; // 520px
+    hostEl.style.right = "1.25rem";
+    hostEl.style.bottom = "1.25rem";
+  }
 
   document.body.appendChild(hostEl);
 
   // create shadow root for isolation (fallback to hostEl itself if no shadow support)
-  const shadow = hostEl.attachShadow ? hostEl.attachShadow({ mode: "open" }) : hostEl;
+  const shadow = hostEl.attachShadow
+    ? hostEl.attachShadow({ mode: "open" })
+    : hostEl;
 
   // Inject Tailwind CDN (or your CSS). For production you should bundle CSS.
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css";
+  link.href =
+    "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css";
   shadow.appendChild(link);
-  
+
   const fontLink = document.createElement("link");
-fontLink.rel = "stylesheet";
-fontLink.href = "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap";
-shadow.appendChild(fontLink);
+  fontLink.rel = "stylesheet";
+  fontLink.href =
+    "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap";
+  shadow.appendChild(fontLink);
 
   // Small reset/style to ensure consistent rendering inside shadow root
   const style = document.createElement("style");
-style.textContent = `
-  :host {
-    all: initial;
-     display: block;
+  style.textContent = `
+:host {
+  all: initial;
+  display: block;
   width: 100%;
   height: 100%;
-   font-family: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    "Geist",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 
+  /* Vittam Brand Theme */
+  --v-bg: #fcf7ed;
+  --v-card: #f7f1e6;
+  --v-border: #e6ded2;
+  --v-text: #1f1b13;
+  --v-muted: #6b665e;
+  --v-primary: #009688;
+  --v-primary-soft: #cfe9e4;
+}
 
-    /* Vittam Brand Theme */
-    --v-bg: #fcf7ed;
-    --v-card: #f7f1e6;
-    --v-border: #e6ded2;
-    --v-text: #1f1b13;
-    --v-muted: #6b665e;
-    --v-primary: #009688;
-    --v-primary-soft: #cfe9e4;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
-
-  body {
-    margin: 0;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    color: var(--v-text);
-  }
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--v-text);
+}
 `;
-shadow.appendChild(style);
-
-
-  
+  shadow.appendChild(style);
 
   // Create mount point inside the shadow root
   const mountPoint = document.createElement("div");
   mountPoint.id = "chat-widget-mount";
   mountPoint.style.width = "100%";
-mountPoint.style.height = "100%";
-mountPoint.style.display = "flex";
+  mountPoint.style.height = "100%";
+  mountPoint.style.display = "flex";
   shadow.appendChild(mountPoint);
 
   // Create React root and render wrapped with MemoryRouter

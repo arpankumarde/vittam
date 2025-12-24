@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
-export default function CRMHomePage() {
+const Page = () => {
   redirect("/crm/users");
-}
+};
+
+export default Page;

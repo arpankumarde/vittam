@@ -1,4 +1,8 @@
-import { mountWidget, unmountWidget, sendMessageToWidget } from "./widget/mounter";
+import {
+  mountWidget,
+  unmountWidget,
+  sendMessageToWidget,
+} from "./widget/mounter";
 
 // Auto-mount (when script tag loads)
 (function autoMount() {
@@ -16,7 +20,8 @@ import { mountWidget, unmountWidget, sendMessageToWidget } from "./widget/mounte
     }
 
     const botId = scriptEl?.getAttribute("data-bot-id") || "local";
-    const position = (scriptEl?.getAttribute("data-position") as any) || "bottom-right";
+    const position =
+      (scriptEl?.getAttribute("data-position") as any) || "bottom-right";
     const width = Number(scriptEl?.getAttribute("data-width") || 360);
     const height = Number(scriptEl?.getAttribute("data-height") || 520);
 
@@ -28,8 +33,8 @@ import { mountWidget, unmountWidget, sendMessageToWidget } from "./widget/mounte
 
 // Expose global API
 // @ts-ignore
-(window).ChatWidget = {
+window.ChatWidget = {
   mount: mountWidget,
   unmount: unmountWidget,
-  sendMessage: (m: string) => sendMessageToWidget(m)
+  sendMessage: (m: string) => sendMessageToWidget(m),
 };
