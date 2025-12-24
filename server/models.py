@@ -25,6 +25,7 @@ class Session(TypedDict, total=False):
     updated_at: datetime
     metadata: SessionMetadata
     is_active: bool
+    documents: List[ObjectId]
 
 
 class Conversation(TypedDict, total=False):
@@ -86,3 +87,19 @@ class OfferTemplate(TypedDict):
     base_rate: Optional[float]
     processing_fee_pct: Optional[float]
     active: Optional[bool]
+
+
+class Document(TypedDict, total=False):
+    """Document document for the documents collection"""
+
+    _id: Optional[ObjectId]
+    session_id: str
+    doc_id: str  # e.g., "identity_proof", "bank_statement"
+    doc_name: str  # e.g., "Identity Proof", "Bank Statement"
+    original_filename: str
+    file_path: str  # e.g., "<SESSION_ID>/identity_proof"
+    file_size: int  # Size in bytes
+    uploaded_at: datetime
+    verification_status: Optional[str]  # "verified", "unverified", "rejected", "pending"
+    verification_feedback: Optional[str]  # Feedback from verification (if rejected)
+    verified_at: Optional[datetime]  # When document was verified

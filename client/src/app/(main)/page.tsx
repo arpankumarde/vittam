@@ -130,7 +130,7 @@ export default function Home() {
               description={item.description}
               header={item.header}
               icon={item.icon}
-              className={i === 0 || i === 3 ? "md:col-span-2" : ""}
+              className={i === 0 ? "md:col-span-2" : ""}
             />
           ))}
         </BentoGrid>
@@ -463,7 +463,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="container mx-auto px-4 pb-20">
         <div className="bg-primary text-primary-foreground rounded-3xl p-12 md:p-20 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+          <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-60"></div>
           <div className="relative z-10 max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">
               Ready to Automate Your Loan Sales?

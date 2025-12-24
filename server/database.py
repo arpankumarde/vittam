@@ -32,6 +32,7 @@ conversations_collection: Collection = db["conversations"]
 users_collection: Collection = db["users"]
 kycs_collection: Collection = db["kycs"]
 offer_template_collection: Collection = db["offer_template"]
+documents_collection: Collection = db["documents"]
 
 # Create indexes for better query performance
 def create_indexes():
@@ -48,6 +49,12 @@ def create_indexes():
     
     # Index on is_active for sessions (for filtering active sessions)
     sessions_collection.create_index("is_active")
+    
+    # Index on session_id for documents (for lookups)
+    documents_collection.create_index("session_id")
+    
+    # Index on doc_id and session_id combination (for unique document per session)
+    documents_collection.create_index([("session_id", 1), ("doc_id", 1)], unique=True)
 
 # Initialize indexes on import
 create_indexes()

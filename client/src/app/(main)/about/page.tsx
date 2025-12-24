@@ -1,15 +1,9 @@
 import { Button } from "@/components/ui/button";
-import {
-  Users,
-  Target,
-  Rocket,
-  Award,
-  Heart,
-  Lightbulb,
-  Linkedin,
-  Mail,
-} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
+import { FaGithub, FaLinkedin } from "react-icons/fa";
+import { MdMail } from "react-icons/md";
+import { Users, Target, Rocket, Award, Heart, Lightbulb } from "lucide-react";
 
 const Page = () => {
   return (
@@ -137,9 +131,10 @@ const Page = () => {
             <p>
               Today, Vittam powers loan sales for leading NBFCs across India,
               processing thousands of applications daily with unprecedented
-              speed and accuracy. But we're just getting started. Our mission is
-              to expand beyond personal loans, bringing the same level of
-              automation and intelligence to home loans, auto loans, and beyond.
+              speed and accuracy. But we&apos;re just getting started. Our
+              mission is to expand beyond personal loans, bringing the same
+              level of automation and intelligence to home loans, auto loans,
+              and beyond.
             </p>
           </div>
         </div>
@@ -153,14 +148,18 @@ const Page = () => {
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           <div className="bg-card border border-border/50 rounded-3xl p-8 shadow-sm text-center">
             <div className="h-32 w-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mx-auto mb-6 flex items-center justify-center">
-              <span className="text-4xl font-bold text-primary">AK</span>
+              {/* <span className="text-4xl font-bold text-primary">AK</span> */}
+              <Image
+                src="https://avatars.githubusercontent.com/arpankumarde"
+                alt="Arpan Kumar De"
+                width={128}
+                height={128}
+                className="rounded-full"
+              />
             </div>
             <h3 className="text-2xl font-bold mb-2">Arpan Kumar De</h3>
-            <p className="text-primary font-medium mb-4">Co-Founder & CEO</p>
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              Arjun brings 15+ years of experience in financial services and AI.
-              Previously led digital transformation initiatives at major NBFCs.
-              Passionate about using technology to democratize access to credit.
+            <p className="text-primary font-medium mb-4">
+              Backend Engineer & Automation Specialist
             </p>
             <div className="flex gap-4 justify-center">
               <Link
@@ -169,27 +168,39 @@ const Page = () => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Linkedin className="h-5 w-5" />
+                <FaLinkedin className="size-5" />
+              </Link>
+              <Link
+                href="https://github.com/arpankumarde"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FaGithub className="size-5" />
               </Link>
               <Link
                 href="#"
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
-                <Mail className="h-5 w-5" />
+                <MdMail className="size-5" />
               </Link>
             </div>
           </div>
 
           <div className="bg-card border border-border/50 rounded-3xl p-8 shadow-sm text-center">
             <div className="h-32 w-32 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mx-auto mb-6 flex items-center justify-center">
-              <span className="text-4xl font-bold text-primary">SM</span>
+              {/* <span className="text-4xl font-bold text-primary">PM</span> */}
+              <Image
+                src="https://avatars.githubusercontent.com/priyamahato86"
+                alt="Priya Mahato"
+                width={128}
+                height={128}
+                className="rounded-full"
+              />
             </div>
             <h3 className="text-2xl font-bold mb-2">Priya Mahato</h3>
-            <p className="text-primary font-medium mb-4">Co-Founder & CTO</p>
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              Sneha is an AI researcher and engineer with expertise in
-              multi-agent systems and NLP. Formerly at leading tech companies,
-              she&apos;s built scalable AI solutions serving millions of users.
+            <p className="text-primary font-medium mb-4">
+              UI/UX and Frontend Engineer
             </p>
             <div className="flex gap-4 justify-center">
               <Link
@@ -198,13 +209,21 @@ const Page = () => {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Linkedin className="h-5 w-5" />
+                <FaLinkedin className="size-5" />
+              </Link>
+              <Link
+                href="https://github.com/priyamahato86"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FaGithub className="size-5" />
               </Link>
               <Link
                 href="#"
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
-                <Mail className="h-5 w-5" />
+                <MdMail className="size-5" />
               </Link>
             </div>
           </div>

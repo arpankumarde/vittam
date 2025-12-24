@@ -11,6 +11,9 @@ import {
   createSession,
   sendChatMessage,
   getSessionHistory,
+  uploadDocument,
+  verifySessionDocuments,
+  getDocIdFromName,
   type InputSpec,
 } from "../services/api";
 
@@ -207,29 +210,123 @@ export default function App({ botId }: Props) {
     // Mark as submitted to prevent duplicate submissions
     hasSubmittedDocumentsRef.current = true;
 
-    // Create structured data message
-    const structuredData = `Name: Rajesh Kumar
-rajesh.kumar@email.com
-Address: 123, MG Road, Mumbai - 400001
-Phone: 9876543210
-Rajesh Kumar	ABCDE1234F
-DOB: 15/5/1992`;
+    // Upload all documents to the server
+    async function uploadAllDocuments() {
+      try {
+        setIsLoading(true);
+        const uploadPromises: Promise<void>[] = [];
+        const documentIds: string[] = [];
 
-    // Show user message about all documents being submitted
-    addMessage("user", `${documentInputs.length} documents sent`);
+        // Upload each document
+        for (const input of documentInputs) {
+          const uploadedDoc = uploadedDocuments.get(input.name);
+          if (!uploadedDoc) continue;
 
-    // Small delay to show the message first
-    const timeoutId = setTimeout(() => {
-      // Send structured data to backend
-      sendMessageFromInput(structuredData);
+          // Get doc_id from input (backend should always provide this)
+          // Fallback to name mapping if doc_id is missing
+          let docId = input.doc_id || getDocIdFromName(input.name);
+          if (!docId) {
+            console.error(`Could not determine doc_id for document: ${input.name}. Backend should provide doc_id in inputs array.`);
+            // Generate fallback doc_id as last resort
+            docId = input.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+            if (!docId) {
+              console.error(`Could not generate fallback doc_id for: ${input.name}`);
+              continue;
+            }
+            console.warn(`Using generated fallback doc_id: ${docId}`);
+          }
 
-      // Clear document inputs and uploaded documents
-      setDocumentInputs([]);
-      setUploadedDocuments(new Map());
-      hasSubmittedDocumentsRef.current = false;
-    }, 500);
+          // Upload document
+          const uploadPromise = uploadDocument(
+            sessionId!,
+            docId,
+            uploadedDoc.file
+          )
+            .then((response) => {
+              documentIds.push(response.document_id);
+            })
+            .catch((error) => {
+              console.error(`Failed to upload ${input.name}:`, error);
+              throw error;
+            });
 
-    return () => clearTimeout(timeoutId);
+          uploadPromises.push(uploadPromise);
+        }
+
+        // Wait for all uploads to complete
+        await Promise.all(uploadPromises);
+
+        // Show success message
+        addMessage("user", `${documentInputs.length} documents uploaded`);
+
+        // STEP 1: Automatically verify all uploaded documents
+        try {
+          const verificationResult = await verifySessionDocuments(sessionId!);
+          
+          if (verificationResult.all_verified) {
+            // All documents verified successfully
+            addMessage("bot", `✅ Great! All ${verificationResult.verified_count} documents have been verified successfully. Your documents are ready!`);
+            
+            // Now send message to backend to proceed with loan process
+            const docIdsMessage = `Documents uploaded and verified. Document IDs: ${documentIds.join(", ")}`;
+            await sendMessageFromInput(docIdsMessage);
+            
+            // Clear document inputs and uploaded documents
+            setDocumentInputs([]);
+            setUploadedDocuments(new Map());
+            hasSubmittedDocumentsRef.current = false;
+          } else {
+            // Some documents were rejected - need to reupload
+            const rejectedDocs = verificationResult.results.filter(r => !r.verified);
+            let rejectionMessage = `⚠️ Document verification completed:\n`;
+            rejectionMessage += `✅ Verified: ${verificationResult.verified_count} documents\n`;
+            rejectionMessage += `❌ Rejected: ${verificationResult.rejected_count} documents\n\n`;
+            rejectionMessage += `Please reupload the following documents:\n`;
+            
+            rejectedDocs.forEach(doc => {
+              rejectionMessage += `- ${doc.doc_name}: ${doc.feedback || 'Document verification failed'}\n`;
+            });
+            
+            addMessage("bot", rejectionMessage);
+            
+            // Clear only the rejected documents from uploadedDocuments
+            // Keep verified ones, remove rejected ones so user can reupload
+            setUploadedDocuments((prev) => {
+              const newMap = new Map(prev);
+              rejectedDocs.forEach(rejected => {
+                // Find the document input by doc_id
+                const input = documentInputs.find(inp => {
+                  const docId = inp.doc_id || getDocIdFromName(inp.name);
+                  return docId === rejected.doc_id;
+                });
+                if (input) {
+                  newMap.delete(input.name);
+                }
+              });
+              return newMap;
+            });
+            
+            // Don't send message to backend yet - wait for reupload
+            hasSubmittedDocumentsRef.current = false;
+          }
+        } catch (error) {
+          console.error("Failed to verify documents:", error);
+          addMessage("bot", "I'm sorry, there was an error verifying your documents. Please try uploading them again.");
+          hasSubmittedDocumentsRef.current = false;
+        }
+      } catch (error) {
+        console.error("Failed to upload documents:", error);
+        addMessage(
+          "bot",
+          "I'm sorry, there was an error uploading your documents. Please try again."
+        );
+        hasSubmittedDocumentsRef.current = false;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    uploadAllDocuments();
   }, [uploadedDocuments, documentInputs, sessionId]);
 
   // Props to pass into routed screens
@@ -291,7 +388,7 @@ DOB: 15/5/1992`;
                 <RiCustomerService2Fill size={20} style={{ color: "white" }} />
               </div>
 
-              <div>
+              <div className="select-none">
                 <div className="text-sm font-semibold text-white">
                   Vittam Assistant
                 </div>

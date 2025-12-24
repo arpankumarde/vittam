@@ -28,7 +28,7 @@ export const Header = () => {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex gap-8 items-center">
+        <nav className="hidden md:flex gap-4 lg:gap-8 items-center">
           <Link
             href="/solutions"
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"

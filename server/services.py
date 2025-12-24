@@ -861,6 +861,13 @@ def get_loan_charges_info() -> Dict:
 def get_required_documents() -> Dict:
     """
     Get list of required documents for loan application.
+    
+    IMPORTANT: These are the ONLY 5 document types allowed (hardcoded):
+    1. identity_proof (always mandatory)
+    2. address_proof (always mandatory)
+    3. bank_statement (always mandatory)
+    4. salary_slip (sometimes required)
+    5. employment_certificate (sometimes required)
 
     Returns:
         Dict with document requirements categorized by approval type
@@ -869,22 +876,34 @@ def get_required_documents() -> Dict:
 
     documents = {
         "always_required": {
-            "photo_identity_proof": {
+            "identity_proof": {
+                "doc_id": "identity_proof",
+                "name": "Identity Proof",
                 "description": "Any ONE of the following",
                 "options": ["Voter ID", "Passport", "Driving License", "Aadhaar Card"],
             },
             "address_proof": {
+                "doc_id": "address_proof",
+                "name": "Address Proof",
                 "description": "Any ONE of the following",
                 "options": ["Voter ID", "Passport", "Driving License", "Aadhaar Card"],
             },
             "bank_statement": {
+                "doc_id": "bank_statement",
+                "name": "Bank Statement",
                 "description": "Primary bank statement (salary account) for last 3 months"
             },
         },
         "conditional_only": {
             "description": "Required ONLY for conditional approvals (when loan amount > pre-approved limit)",
-            "salary_slips": {"description": "Salary slips for last 2 months"},
+            "salary_slip": {
+                "doc_id": "salary_slip",
+                "name": "Salary Slips",
+                "description": "Salary slips for last 2 months"
+            },
             "employment_certificate": {
+                "doc_id": "employment_certificate",
+                "name": "Employment Certificate",
                 "description": "Certificate confirming at least 1 year of continuous employment"
             },
         },
@@ -892,6 +911,7 @@ def get_required_documents() -> Dict:
             "Same document can serve as both identity and address proof",
             "Salary slips and employment certificate are only required for high-risk/conditional cases",
             "For instant approvals (loan ≤ pre-approved limit), only ID, address proof, and bank statement are needed",
+            "⚠️ IMPORTANT: Only these 5 document types are allowed. Do NOT request any other document types.",
         ],
     }
 
@@ -907,18 +927,24 @@ def generate_sanction_letter(
         f"[SERVICE] generate_sanction_letter called - customer_id: {customer_id}, amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%"
     )
 
-    customer = get_customer_by_id(customer_id)
+    try:
+        customer = get_customer_by_id(customer_id)
+        logger.info(f"[SERVICE] generate_sanction_letter - Customer lookup result: {'Found' if customer else 'Not found'}")
 
-    if not customer:
-        logger.error(
-            f"[SERVICE] generate_sanction_letter - Customer not found: {customer_id}"
-        )
-        return {"success": False, "message": "Customer not found"}
+        if not customer:
+            logger.error(
+                f"[SERVICE] generate_sanction_letter - Customer not found: {customer_id}"
+            )
+            return {"success": False, "message": "Customer not found"}
 
-    emi_result = calculate_emi(loan_amount, tenure_months, interest_rate)
-    customer_name = customer.get("name", "Valued Customer")
+        logger.info(f"[SERVICE] generate_sanction_letter - Calculating EMI for amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%")
+        emi_result = calculate_emi(loan_amount, tenure_months, interest_rate)
+        logger.info(f"[SERVICE] generate_sanction_letter - EMI calculation result: {emi_result}")
+        
+        customer_name = customer.get("name", "Valued Customer")
+        logger.info(f"[SERVICE] generate_sanction_letter - Customer name: {customer_name}")
 
-    sanction_letter = {
+        sanction_letter = {
         "success": True,
         "customer_id": customer_id,
         "customer_name": customer_name,
@@ -959,7 +985,13 @@ Tata Capital Personal Loans Team
         """.strip(),
     }
 
-    logger.info(
-        f"[SERVICE] generate_sanction_letter - Sanction letter generated successfully for customer: {customer_id}"
-    )
-    return sanction_letter
+        logger.info(
+            f"[SERVICE] generate_sanction_letter - Sanction letter generated successfully for customer: {customer_id}"
+        )
+        logger.info(f"[SERVICE] generate_sanction_letter - Returning sanction letter with keys: {list(sanction_letter.keys())}")
+        return sanction_letter
+    except Exception as e:
+        logger.error(f"[SERVICE] generate_sanction_letter - Exception occurred: {str(e)}")
+        import traceback
+        logger.error(f"[SERVICE] generate_sanction_letter - Traceback: {traceback.format_exc()}")
+        return {"success": False, "message": f"Error generating sanction letter: {str(e)}"}

@@ -65,6 +65,24 @@ export default function ChatScreen(props: ScreenProps) {
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
+        // Validate file size (1MB = 1048576 bytes)
+        const MAX_FILE_SIZE = 1048576;
+        if (file.size > MAX_FILE_SIZE) {
+          alert(
+            `File size exceeds 1MB limit. Current size: ${(
+              file.size /
+              1024 /
+              1024
+            ).toFixed(2)}MB`
+          );
+          return;
+        }
+
+        if (file.size === 0) {
+          alert("File is empty. Please select a valid file.");
+          return;
+        }
+
         // Store the uploaded document
         onDocumentUpload?.(docName, file);
       }
@@ -114,7 +132,10 @@ export default function ChatScreen(props: ScreenProps) {
                     className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: "var(--v-primary-soft)" }}
                   >
-                    <RiCustomerService2Fill size={16} style={{ color: "var(--v-primary)" }} />
+                    <RiCustomerService2Fill
+                      size={16}
+                      style={{ color: "var(--v-primary)" }}
+                    />
                   </div>
                 )}
                 <div
@@ -287,7 +308,10 @@ export default function ChatScreen(props: ScreenProps) {
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: "var(--v-primary-soft)" }}
                 >
-                  <RiCustomerService2Fill size={16} style={{ color: "var(--v-primary)" }} />
+                  <RiCustomerService2Fill
+                    size={16}
+                    style={{ color: "var(--v-primary)" }}
+                  />
                 </div>
                 <div
                   className="rounded-2xl rounded-tl-sm px-4 py-2.5"
@@ -417,7 +441,7 @@ export default function ChatScreen(props: ScreenProps) {
                   <button
                     key={label}
                     onClick={() => onQuickClick(label)}
-                    className="rounded-xl px-3 py-2.5 text-xs font-medium transition hover:opacity-80"
+                    className="rounded-xl px-3 py-2.5 text-xs font-medium transition hover:opacity-80 select-none"
                     style={{
                       backgroundColor: "var(--v-card)",
                       border: "1px solid var(--v-border)",

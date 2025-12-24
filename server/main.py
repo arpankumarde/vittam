@@ -16,7 +16,7 @@ import os
 import json
 import logging
 import uuid
-from typing import Optional
+from typing import Optional, Dict
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain.tools import tool
@@ -30,9 +30,32 @@ from services import (
     get_interest_rate, get_offers_for_credit_score, get_loan_charges_info,
     get_required_documents
 )
+from document_verification_service import verify_session_documents
+from document_service import get_documents_by_session
 from session_service import create_session, get_session, update_session
 from conversation_service import create_conversation
 from models import SessionMetadata
+
+# Import ALLOWED_DOCUMENT_TYPES - use lazy import to avoid circular dependency
+ALLOWED_DOCUMENT_TYPES = None
+
+def _get_allowed_document_types():
+    """Lazy import of ALLOWED_DOCUMENT_TYPES to avoid circular dependency."""
+    global ALLOWED_DOCUMENT_TYPES
+    if ALLOWED_DOCUMENT_TYPES is None:
+        try:
+            from app import ALLOWED_DOCUMENT_TYPES as doc_types
+            ALLOWED_DOCUMENT_TYPES = doc_types
+        except ImportError:
+            # Fallback if import fails
+            ALLOWED_DOCUMENT_TYPES = {
+                "identity_proof": {"name": "Identity Proof"},
+                "address_proof": {"name": "Address Proof"},
+                "bank_statement": {"name": "Bank Statement"},
+                "salary_slip": {"name": "Salary Slips"},
+                "employment_certificate": {"name": "Employment Certificate"}
+            }
+    return ALLOWED_DOCUMENT_TYPES
 
 load_dotenv()
 
@@ -63,14 +86,15 @@ model = ChatOpenAI(
 session_state = {
     "customer_id": None,
     "loan_amount": None,
-    "tenure_months": 60,
+    "tenure_months": None,
     "conversation_stage": "initial",  # initial, needs_analysis, verification, underwriting, sanction
     "customer_data": None,
-    "conversation_history": []  # Store full conversation history
+    "conversation_history": []
 }
 
-# Current session ID (None means no active session)
+# Current session ID
 current_session_id: Optional[str] = None
+verified_documents: Dict[str, bool] = {}  # Document verification status: {doc_id: is_verified}
 
 
 # ==================== SALES AGENT TOOLS ====================
@@ -589,6 +613,157 @@ def verify_salary_slip_upload(customer_id: str, uploaded: bool = True) -> str:
     return json.dumps(result, indent=2)
 
 
+@tool
+def verify_uploaded_documents(session_id: str) -> str:
+    """
+    Verify all uploaded documents for a session using AI verification.
+    
+    This tool verifies documents to check:
+    1. If the document is the correct type (e.g., Identity Proof is actually Aadhaar/Voter ID/etc.)
+    2. If the document is clear and readable
+    3. If the document is complete
+    
+    Input: session_id
+    Returns: Verification results for all documents with status (verified/rejected) and feedback
+    
+    IMPORTANT:
+    - Only call this after documents have been uploaded
+    - If documents are rejected, inform customer to reupload only the rejected documents
+    - Do NOT ask for documents multiple times - only ask to resubmit if verification fails
+    """
+    logger.info(f"[TOOL] verify_uploaded_documents called - session_id: {session_id}")
+    
+    try:
+        # Verify all documents
+        result = verify_session_documents(session_id)
+        
+        # Format response for agent
+        if result.get("all_verified", False):
+            message = f"✅ All documents verified successfully! All {result.get('verified_count', 0)} documents are correct and ready."
+        else:
+            verified_count = result.get("verified_count", 0)
+            rejected_count = result.get("rejected_count", 0)
+            message = f"Document verification completed:\n"
+            message += f"- Verified: {verified_count} documents\n"
+            message += f"- Rejected: {rejected_count} documents\n\n"
+            message += "Rejected documents need to be reuploaded:\n"
+            
+            for doc_result in result.get("results", []):
+                if not doc_result.get("verified", False):
+                    doc_name = doc_result.get("doc_name", "Unknown")
+                    feedback = doc_result.get("feedback", "Document verification failed")
+                    message += f"- {doc_name}: {feedback}\n"
+        
+        logger.info(f"[TOOL] verify_uploaded_documents - Session: {session_id}, All verified: {result.get('all_verified', False)}")
+        return json.dumps({
+            "success": True,
+            "all_verified": result.get("all_verified", False),
+            "message": message,
+            "results": result.get("results", [])
+        }, indent=2)
+        
+    except Exception as e:
+        logger.error(f"[TOOL] verify_uploaded_documents - Error: {str(e)}")
+        return json.dumps({
+            "success": False,
+            "message": f"Error verifying documents: {str(e)}"
+        }, indent=2)
+
+
+@tool
+def check_document_verification_status(session_id: Optional[str] = None) -> str:
+    """
+    Check the verification status of all uploaded documents for the current session.
+    
+    Input: session_id (optional - will use current session if not provided)
+    Returns: Status of all documents (pending, verified, rejected) with details
+    
+    Use this to check if all documents are verified before proceeding to sanction letter.
+    
+    IMPORTANT: If session_id is not provided, this will automatically use the current session.
+    """
+    # Use current_session_id if session_id not provided or if it looks invalid (not a UUID format)
+    # UUIDs typically have format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars with 4 dashes)
+    if not session_id or len(session_id) < 30 or session_id.count('-') < 4:
+        if current_session_id:
+            logger.info(f"[TOOL] check_document_verification_status - Using current_session_id: {current_session_id} (provided: {session_id})")
+            session_id = current_session_id
+        else:
+            logger.error(f"[TOOL] check_document_verification_status - No valid session_id provided and current_session_id is None")
+            return json.dumps({
+                "success": False,
+                "message": "Session ID not available. Please ensure you're in an active session."
+            }, indent=2)
+    
+    logger.info(f"[TOOL] check_document_verification_status called - session_id: {session_id}")
+    
+    try:
+        # Get all documents for session
+        documents = get_documents_by_session(session_id)
+        
+        if not documents:
+            return json.dumps({
+                "success": True,
+                "message": "No documents uploaded yet",
+                "documents": [],
+                "all_verified": False
+            }, indent=2)
+        
+        # Format document statuses
+        doc_statuses = []
+        all_verified = True
+        pending_count = 0
+        verified_count = 0
+        rejected_count = 0
+        
+        for doc in documents:
+            status = doc.get("verification_status", "pending")
+            doc_statuses.append({
+                "doc_id": doc["doc_id"],
+                "doc_name": doc["doc_name"],
+                "status": status,
+                "feedback": doc.get("verification_feedback")
+            })
+            
+            if status == "pending":
+                pending_count += 1
+                all_verified = False
+            elif status == "verified":
+                verified_count += 1
+            elif status == "rejected":
+                rejected_count += 1
+                all_verified = False
+        
+        message = f"Document Status:\n"
+        message += f"- Verified: {verified_count}\n"
+        message += f"- Pending: {pending_count}\n"
+        message += f"- Rejected: {rejected_count}\n"
+        
+        if all_verified and verified_count > 0:
+            message += "\n✅ All documents are verified and ready!"
+        elif rejected_count > 0:
+            message += "\n⚠️ Some documents need to be reuploaded."
+        elif pending_count > 0:
+            message += "\n⏳ Some documents are pending verification."
+        
+        return json.dumps({
+            "success": True,
+            "message": message,
+            "documents": doc_statuses,
+            "all_verified": all_verified,
+            "verified_count": verified_count,
+            "pending_count": pending_count,
+            "rejected_count": rejected_count
+        }, indent=2)
+        
+    except Exception as e:
+        logger.error(f"[TOOL] check_document_verification_status - Error: {str(e)}")
+        return json.dumps({
+            "success": False,
+            "message": f"Error checking document status: {str(e)}"
+        }, indent=2)
+
+
 # ==================== SANCTION LETTER AGENT TOOLS ====================
 
 @tool
@@ -597,19 +772,79 @@ def generate_loan_sanction_letter(customer_id: str, loan_amount: float,
     """
     Generate sanction letter for approved loan.
     
+    ⚠️ PREREQUISITES - This tool can ONLY be called after:
+    1. KYC is fully verified (customer_id must exist and be verified)
+    2. Loan is approved (instant or conditional)
+    3. ALL required documents are uploaded and verified
+    4. Bank account details are collected from customer
+    
     Input: customer_id, loan_amount, tenure_months, interest_rate
     Returns: Sanction letter summary with all terms and conditions
+    
+    Note: This is the LAST step in the loan process. Never call this before all verifications are complete.
     """
     logger.info(f"[TOOL] generate_loan_sanction_letter called - customer_id: {customer_id}, amount: ₹{loan_amount:,.0f}, tenure: {tenure_months} months, rate: {interest_rate}%")
-    result = generate_sanction_letter(customer_id, loan_amount, tenure_months, interest_rate)
-    if result["success"]:
-        session_state["conversation_stage"] = "sanction"
-        # Update session in database
-        sync_session_to_db()
-        logger.info(f"[TOOL] generate_loan_sanction_letter - Sanction letter generated successfully for customer: {customer_id}")
+    logger.info(f"[TOOL] generate_loan_sanction_letter - Current session_id: {current_session_id}, conversation_stage: {session_state.get('conversation_stage')}")
+    
+    # Verify customer exists and is verified
+    customer = get_customer_by_id(customer_id)
+    if not customer:
+        error_msg = "Cannot generate sanction letter: Customer not found or KYC not verified. Please complete KYC verification first."
+        logger.error(f"[TOOL] generate_loan_sanction_letter - {error_msg}")
+        return json.dumps({"success": False, "message": error_msg}, indent=2)
+    logger.info(f"[TOOL] generate_loan_sanction_letter - Customer found: {customer.get('name', 'N/A')}")
+    
+    # Check if loan is approved (should be in underwriting stage or already approved)
+    conversation_stage = session_state.get("conversation_stage")
+    logger.info(f"[TOOL] generate_loan_sanction_letter - Conversation stage check: {conversation_stage}")
+    if conversation_stage not in ["underwriting", "sanction"]:
+        error_msg = f"Cannot generate sanction letter: Loan approval not confirmed. Current stage: {conversation_stage}. Please complete underwriting and get loan approval first."
+        logger.error(f"[TOOL] generate_loan_sanction_letter - {error_msg}")
+        return json.dumps({"success": False, "message": error_msg}, indent=2)
+    
+    # Check document verification status
+    if current_session_id:
+        try:
+            logger.info(f"[TOOL] generate_loan_sanction_letter - Checking document verification status for session: {current_session_id}")
+            status_result = check_document_verification_status(current_session_id)
+            status_data = json.loads(status_result)
+            logger.info(f"[TOOL] generate_loan_sanction_letter - Document status: all_verified={status_data.get('all_verified')}, pending={status_data.get('pending_count', 0)}, rejected={status_data.get('rejected_count', 0)}")
+            if not status_data.get("all_verified", False):
+                pending = status_data.get("pending_count", 0)
+                rejected = status_data.get("rejected_count", 0)
+                error_msg = f"Cannot generate sanction letter: Documents verification incomplete. Pending: {pending}, Rejected: {rejected}. Please verify all documents first."
+                logger.error(f"[TOOL] generate_loan_sanction_letter - {error_msg}")
+                return json.dumps({"success": False, "message": error_msg}, indent=2)
+        except Exception as e:
+            logger.warning(f"[TOOL] generate_loan_sanction_letter - Could not check document status: {str(e)}")
+            import traceback
+            logger.warning(f"[TOOL] generate_loan_sanction_letter - Document check traceback: {traceback.format_exc()}")
+            # Continue anyway, but log the warning
     else:
-        logger.error(f"[TOOL] generate_loan_sanction_letter - Failed to generate sanction letter")
-    return json.dumps(result, indent=2)
+        logger.warning(f"[TOOL] generate_loan_sanction_letter - current_session_id is None, skipping document verification check")
+    
+    try:
+        logger.info(f"[TOOL] generate_loan_sanction_letter - Calling generate_sanction_letter service with: customer_id={customer_id}, loan_amount={loan_amount}, tenure_months={tenure_months}, interest_rate={interest_rate}")
+        result = generate_sanction_letter(customer_id, loan_amount, tenure_months, interest_rate)
+        logger.info(f"[TOOL] generate_loan_sanction_letter - Service returned: success={result.get('success')}, message={result.get('message', 'N/A')[:100]}")
+        
+        if result.get("success"):
+            session_state["conversation_stage"] = "sanction"
+            # Update session in database
+            sync_session_to_db()
+            logger.info(f"[TOOL] generate_loan_sanction_letter - Sanction letter generated successfully for customer: {customer_id}")
+        else:
+            error_msg = result.get("message", "Unknown error")
+            logger.error(f"[TOOL] generate_loan_sanction_letter - Failed to generate sanction letter. Error: {error_msg}")
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        logger.error(f"[TOOL] generate_loan_sanction_letter - Exception occurred: {str(e)}")
+        import traceback
+        logger.error(f"[TOOL] generate_loan_sanction_letter - Traceback: {traceback.format_exc()}")
+        return json.dumps({
+            "success": False,
+            "message": f"Technical error during sanction letter generation: {str(e)}"
+        }, indent=2)
 
 
 @tool
@@ -740,16 +975,40 @@ TATA CAPITAL PERSONAL LOAN HIGHLIGHTS:
 - No collateral needed
 
 REQUIRED DOCUMENTS FOR PERSONAL LOAN:
-ALWAYS REQUIRED:
-- Photo Identity Proof: Voter ID, Passport, Driving License, or Aadhaar Card
-- Address Proof: Voter ID, Passport, Driving License, or Aadhaar Card
-- Bank Statement: Primary bank statement (salary account) for last 3 months
+⚠️ CRITICAL: You can ONLY request these 5 document types (hardcoded). Use the EXACT keys when mentioning documents:
 
-ONLY FOR HIGH-RISK/CONDITIONAL CASES (when loan > pre-approved limit):
-- Salary Slips: Copies for last 2 months
-- Employment Certificate: Confirming at least 1 year of continuous employment
+ALWAYS MANDATORY (request these for every loan):
+1. Identity Proof - Key: "identity_proof"
+   - Description: Voter ID, Passport, Driving License, or Aadhaar Card
+   - When asking, mention: "Please upload your identity_proof"
 
-NOTE: Do NOT ask for salary slips or employment certificate upfront. Only request these when the underwriting process identifies a conditional approval scenario.
+2. Address Proof - Key: "address_proof"
+   - Description: Voter ID, Passport, Driving License, or Aadhaar Card
+   - When asking, mention: "Please upload your address_proof"
+
+3. Bank Statement - Key: "bank_statement"
+   - Description: Primary bank statement (salary account) for last 3 months
+   - When asking, mention: "Please upload your bank_statement"
+
+SOMETIMES REQUIRED (only for conditional approvals when loan > pre-approved limit):
+4. Salary Slips - Key: "salary_slip"
+   - Description: Salary slips for last 2 months
+   - When asking, mention: "Please upload your salary_slip"
+
+5. Employment Certificate - Key: "employment_certificate"
+   - Description: Certificate confirming at least 1 year of continuous employment
+   - When asking, mention: "Please upload your employment_certificate"
+
+⚠️ IMPORTANT RULES:
+- Use the EXACT keys (identity_proof, address_proof, bank_statement, salary_slip, employment_certificate) when mentioning documents
+- Do NOT ask for any other document types. Only request these 5 types.
+- Do NOT ask for salary_slip or employment_certificate upfront. Only request these when the underwriting process identifies a conditional approval scenario.
+- Always use lowercase with underscores when mentioning document types (e.g., "identity_proof", not "Identity Proof" or "identity proof")
+
+⚠️ NEVER ASK FOR:
+- Power of Attorney - NEVER request this under any circumstances
+- Physical signatures - All approvals are 100% electronic/digital
+- Signature documents - No physical signing required
 
 CHARGES TO BE TRANSPARENT ABOUT:
 - Processing Fee: Up to 3.5% of loan amount + GST
@@ -859,7 +1118,9 @@ underwriting_agent_tools = [
     calculate_loan_emi,
     verify_salary_slip_upload,
     get_available_offers,
-    get_charges_and_fees
+    get_charges_and_fees,
+    verify_uploaded_documents,
+    check_document_verification_status
 ]
 
 underwriting_agent = create_agent(
@@ -947,7 +1208,13 @@ COMMUNICATION STYLE:
 - Show how rate was determined based on credit score
 
 AFTER APPROVAL:
-Once approved (instant or after salary verification), inform customer they can proceed to sanction letter generation."""
+Once approved (instant or after salary verification), inform customer about next steps:
+1. Upload all required documents (Identity Proof, Address Proof, Bank Statement, and Salary Slips/Employment Certificate if conditional)
+2. Provide bank account details (account number, IFSC code, account holder name)
+3. Wait for document verification to complete
+4. Only after ALL documents are verified and bank details are collected, then proceed to sanction letter generation
+
+⚠️ IMPORTANT: Do NOT proceed to sanction letter immediately after approval. Ensure all documents are uploaded and bank details are provided first."""
 )
 
 # Sanction Letter Agent
@@ -955,16 +1222,39 @@ sanction_agent_tools = [
     generate_loan_sanction_letter,
     get_loan_terms_and_conditions,
     get_disbursement_information,
-    get_charges_and_fees
+    get_charges_and_fees,
+    check_document_verification_status
 ]
 
 sanction_agent = create_agent(
     model=model,
     tools=sanction_agent_tools,
-    system_prompt="""You are Vittam's Sanction Letter Generator for Tata Capital Personal Loans. Your role is to create official sanction letters and guide customers through the final steps to disbursement.
+    system_prompt="""You are Vittam's Sanction Letter Generator for Tata Capital Personal Loans. Your role is to create official sanction letters ONLY after all verifications are complete. This is the FINAL and LAST step in the loan process.
 
-YOUR MISSION:
-Generate accurate, professional sanction letters and ensure customers understand all terms before proceeding to disbursement. This is the exciting finale of their loan journey!
+⚠️ CRITICAL PREREQUISITES - SANCTION LETTER CAN ONLY BE GENERATED AFTER:
+1. ✅ KYC is fully verified (PAN verification completed and customer_id is available)
+2. ✅ Loan approval is confirmed (instant or conditional approval after salary verification)
+3. ✅ ALL required documents are uploaded and verified:
+   - Identity Proof (uploaded)
+   - Address Proof (uploaded)
+   - Bank Statement (uploaded)
+   - Salary Slips (if required for conditional approval - uploaded)
+   - Employment Certificate (if required for conditional approval - uploaded)
+4. ✅ Bank account details are collected from customer (account number, IFSC code, account holder name)
+5. ✅ All document verifications are complete
+
+⚠️ NEVER DO THE FOLLOWING:
+- NEVER ask for power of attorney or any signature documents
+- NEVER ask for physical signatures - approval is 100% electronic/digital
+- NEVER generate sanction letter before all prerequisites above are met
+- NEVER skip verification steps to rush to sanction letter
+- NEVER generate sanction letter just after knowing loan requirements
+
+APPROVAL METHOD:
+- All approvals are ELECTRONIC/DIGITAL - no physical signatures required
+- Customer acceptance is through digital confirmation
+- No power of attorney or signature documents needed
+- Loan agreement is digital
 
 SANCTION LETTER MUST INCLUDE:
 1. Customer details (name, customer ID)
@@ -974,8 +1264,9 @@ SANCTION LETTER MUST INCLUDE:
 5. EMI amount
 6. Total amount payable
 7. Processing fee (Up to 3.5% + GST)
-8. Disbursement timeline (24-48 hours)
-9. Validity period (30 days from sanction date)
+8. Disbursement account details (bank account number, IFSC, account holder name)
+9. Disbursement timeline (24-48 hours)
+10. Validity period (30 days from sanction date)
 
 CHARGES TO DISCLOSE (TRANSPARENCY IS KEY):
 - Processing Fee: Up to 3.5% of loan amount + GST
@@ -992,19 +1283,33 @@ TERMS TO HIGHLIGHT:
 - EMI deducted via NACH/Auto-debit
 - Loan for any personal purpose
 - No collateral required
+- Electronic approval - no physical signatures needed
 
-DISBURSEMENT PROCESS:
-1. Customer accepts sanction letter terms
-2. Provide bank account details for disbursement
-3. Complete any remaining document upload
-4. Sign loan agreement (digital/physical)
-5. Loan amount credited within 24-48 hours
+WORKFLOW BEFORE SANCTION LETTER:
+1. Use check_document_verification_status tool (call it without parameters or with current session_id) to verify ALL documents are verified
+2. If any documents are not verified, inform customer and wait for verification
+3. Collect bank account details if not already provided:
+   - Account number
+   - IFSC code
+   - Account holder name (must match customer name)
+4. Only after ALL documents are verified AND bank details are collected, generate sanction letter using generate_loan_sanction_letter tool
+
+⚠️ CRITICAL: Never generate sanction letter if check_document_verification_status shows any documents are not verified!
+
+⚠️ MANDATORY: You MUST call generate_loan_sanction_letter tool to generate the sanction letter. The tool requires:
+- customer_id: Get from session_state or conversation context
+- loan_amount: Get from session_state or conversation context  
+- tenure_months: Get from session_state or conversation context (default to 60 if not specified)
+- interest_rate: Get from conversation context or use default (12.5% if not specified)
+
+DO NOT skip calling this tool - it is the ONLY way to generate the sanction letter. If you don't have these values, extract them from the conversation history or session state.
 
 COMMUNICATION STYLE:
 - Celebrate the milestone: "Congratulations! Your loan is sanctioned!"
 - Be thorough but not overwhelming with information
 - Highlight key figures: amount, EMI, rate
 - Explain charges clearly and transparently
+- Emphasize electronic approval: "Your approval is completely digital - no physical signatures needed!"
 - Create excitement about the quick disbursement
 - End with clear next steps
 
@@ -1012,9 +1317,11 @@ IMPORTANT:
 - Sanction letter is valid for 30 days only - create urgency
 - Ensure all calculations are accurate
 - Double-check customer name and details
+- Verify bank account details are correct before generating
 - Provide contact info for any questions
+- This is the LAST step - make it special!
 
-This is the moment customers have been waiting for - make it special!"""
+Remember: Sanction letter is ONLY generated after ALL verifications, document uploads, and bank details collection are complete. Never rush this step!"""
 )
 
 
@@ -1197,7 +1504,24 @@ def route_to_underwriting_agent(query: str) -> str:
 
 @tool
 def route_to_sanction_agent(query: str) -> str:
-    """Route to Sanction Letter Agent for: generating sanction letters, terms and conditions, disbursement information."""
+    """
+    Route to Sanction Letter Agent for: generating sanction letters, terms and conditions, disbursement information.
+    
+    ⚠️ CRITICAL: Only route to sanction agent when ALL prerequisites are met:
+    1. KYC verified (customer_id available)
+    2. Loan approved
+    3. All documents uploaded and verified
+    4. Bank account details collected
+    
+    Never route to sanction agent just after knowing requirements or before verifications are complete.
+    """
+    # Verify prerequisites before routing
+    if not session_state.get("customer_id"):
+        return "Cannot proceed to sanction letter: KYC verification is required first. Please verify your PAN number."
+    
+    if session_state.get("conversation_stage") not in ["underwriting", "sanction"]:
+        return "Cannot proceed to sanction letter: Loan approval is required first. Please complete the underwriting process."
+    
     # Pass conversation history to maintain context
     return call_sanction_agent(query, session_state.get("conversation_history", []))
 
@@ -1213,6 +1537,41 @@ master_agent_tools = [
 # We'll create a function to get the system prompt with current state
 def get_master_agent_prompt() -> str:
     """Get Master Agent system prompt with current session state."""
+    # Get verified document status
+    verified_docs = verified_documents if verified_documents else {}
+    
+    # Get ALLOWED_DOCUMENT_TYPES (lazy import)
+    doc_types = _get_allowed_document_types()
+    
+    # Format verified documents info for prompt
+    verified_docs_list = []
+    unverified_docs_list = []
+    for doc_id, doc_info in doc_types.items():
+        is_verified = verified_docs.get(doc_id, False)
+        doc_name = doc_info["name"]
+        if is_verified:
+            verified_docs_list.append(f"- {doc_name} ({doc_id}) ✓ VERIFIED")
+        else:
+            unverified_docs_list.append(f"- {doc_name} ({doc_id}) ✗ NOT VERIFIED")
+    
+    verified_docs_section = ""
+    if verified_docs_list:
+        verified_docs_section = f"""
+✅ VERIFIED DOCUMENTS (DO NOT ASK FOR THESE - They are already verified):
+{chr(10).join(verified_docs_list)}
+
+⚠️ CRITICAL: The documents listed above are ALREADY VERIFIED. Do NOT ask the customer to upload them again.
+"""
+    
+    unverified_docs_section = ""
+    if unverified_docs_list:
+        unverified_docs_section = f"""
+❌ DOCUMENTS NOT YET VERIFIED (You may need to ask for these):
+{chr(10).join(unverified_docs_list)}
+"""
+    
+    document_status_section = verified_docs_section + unverified_docs_section if (verified_docs_section or unverified_docs_section) else ""
+    
     return f"""You are VITTAM (विट्टम) - the AI-powered Personal Loan Sales Assistant for Tata Capital. Your name means "wealth" in Sanskrit, and your mission is to help customers achieve their financial goals through personal loans.
 
 YOUR IDENTITY:
@@ -1232,15 +1591,44 @@ Disbursement: 24-48 hours after approval
 Documentation: Minimal - ID proof, Address proof, Bank statement
 No collateral required
 
-REQUIRED DOCUMENTS FOR PERSONAL LOAN:
-ALWAYS REQUIRED:
-- Photo Identity Proof: Voter ID, Passport, Driving License, or Aadhaar Card
-- Address Proof: Voter ID, Passport, Driving License, or Aadhaar Card
-- Bank Statement: Primary bank statement (salary account) for last 3 months
+{document_status_section}
 
-ONLY FOR CONDITIONAL/HIGH-RISK CASES (when loan > pre-approved limit):
-- Salary Slips: Copies for last 2 months
-- Employment Certificate: Confirming at least 1 year of continuous employment
+REQUIRED DOCUMENTS FOR PERSONAL LOAN:
+⚠️ CRITICAL: You can ONLY request these 5 document types (hardcoded). Use the EXACT keys when mentioning documents:
+
+ALWAYS MANDATORY (request these for every loan):
+1. Identity Proof - Key: "identity_proof"
+   - Description: Voter ID, Passport, Driving License, or Aadhaar Card
+   - When asking, mention: "Please upload your identity_proof"
+
+2. Address Proof - Key: "address_proof"
+   - Description: Voter ID, Passport, Driving License, or Aadhaar Card
+   - When asking, mention: "Please upload your address_proof"
+
+3. Bank Statement - Key: "bank_statement"
+   - Description: Primary bank statement (salary account) for last 3 months
+   - When asking, mention: "Please upload your bank_statement"
+
+SOMETIMES REQUIRED (only for conditional approvals when loan > pre-approved limit):
+4. Salary Slips - Key: "salary_slip"
+   - Description: Salary slips for last 2 months
+   - When asking, mention: "Please upload your salary_slip"
+
+5. Employment Certificate - Key: "employment_certificate"
+   - Description: Certificate confirming at least 1 year of continuous employment
+   - When asking, mention: "Please upload your employment_certificate"
+
+⚠️ IMPORTANT RULES:
+- Use the EXACT keys (identity_proof, address_proof, bank_statement, salary_slip, employment_certificate) when mentioning documents
+- Do NOT ask for any other document types. Only request these 5 types.
+- Always use lowercase with underscores when mentioning document types (e.g., "identity_proof", not "Identity Proof" or "identity proof")
+- ⚠️ CRITICAL: Check the VERIFIED DOCUMENTS section above. NEVER ask for documents that are already verified!
+- ⚠️ CRITICAL: Check the VERIFIED DOCUMENTS section above. NEVER ask for documents that are already verified!
+
+⚠️ NEVER ASK FOR:
+- Power of Attorney - NEVER request this under any circumstances
+- Physical signatures - All approvals are 100% electronic/digital
+- Signature documents - No physical signing required
 
 ⚠️ CRITICAL - CREDIT SCORE < 700 = NO LOAN ⚠️
 If customer's credit score is below 700, we CANNOT provide a loan under ANY circumstances.
@@ -1280,11 +1668,29 @@ CONVERSATION STAGES & ROUTING:
 - Calculating EMIs
 - Requesting/verifying salary slips for conditional approvals
 
-4️⃣ SANCTION → Sanction Letter Agent
-- After loan is approved (instant or post salary verification)
-- Generating sanction letter
+4️⃣ SANCTION → Sanction Letter Agent (LAST STEP - ONLY AFTER ALL VERIFICATIONS)
+- ⚠️ CRITICAL: Sanction letter is the FINAL and LAST step
+- ⚠️ NEVER route to sanction agent until ALL prerequisites are met:
+  1. KYC fully verified (PAN verified, customer_id available)
+  2. Loan approved (instant or conditional after salary verification)
+  3. ALL required documents uploaded and verified:
+     - Identity Proof ✓
+     - Address Proof ✓
+     - Bank Statement ✓
+     - Salary Slips (if conditional approval) ✓
+     - Employment Certificate (if conditional approval) ✓
+  4. Bank account details collected (account number, IFSC, account holder name)
+  5. All document verifications complete
+- Generating sanction letter ONLY after all above are complete
 - Explaining terms, conditions, and charges
-- Providing disbursement steps
+- Providing disbursement information
+
+⚠️ NEVER DO:
+- NEVER route to sanction agent just after knowing loan requirements
+- NEVER generate sanction letter before KYC verification
+- NEVER generate sanction letter before documents are uploaded
+- NEVER generate sanction letter before bank details are collected
+- NEVER ask for power of attorney or signatures - approval is 100% electronic
 
 ROUTING INTELLIGENCE:
 - Default to Sales Agent for any general conversation
@@ -1293,7 +1699,11 @@ ROUTING INTELLIGENCE:
 - NEVER ask customer for phone number or OTP - PAN verification handles everything automatically
 - NEVER ask customer for credit score directly - it's retrieved automatically after PAN verification
 - Switch to Underwriting after successful PAN verification (when customer_id is available)
-- Switch to Sanction after approval is confirmed
+- Switch to Sanction ONLY after:
+  ✓ Loan approval confirmed
+  ✓ All documents uploaded and verified
+  ✓ Bank account details collected
+  ✓ All verifications complete
 
 CONVERSATION CONTEXT - CRITICAL:
 - ALWAYS read the FULL conversation history in messages
@@ -1366,11 +1776,10 @@ def initialize_session(session_id: Optional[str] = None) -> str:
         current_session_id = session_id
         m = s.get("metadata", {})
         session_state.update({k: m.get(k) for k in ["customer_id", "loan_amount", "tenure_months", "conversation_stage", "customer_data"]})
-        session_state.setdefault("tenure_months", 60)
         session_state.setdefault("conversation_stage", "initial")
         return session_id
     new_id = session_id or str(uuid.uuid4())
-    create_session(new_id, {"conversation_stage": "initial", "tenure_months": 60}, True)
+    create_session(new_id, {"conversation_stage": "initial"}, True)
     current_session_id = new_id
     return new_id
 
@@ -1383,7 +1792,7 @@ def reset_session():
     session_state = {
         "customer_id": None,
         "loan_amount": None,
-        "tenure_months": 60,
+        "tenure_months": None,
         "conversation_stage": "initial",
         "customer_data": None,
         "conversation_history": []
