@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { BentoGrid, BentoGridItem } from "@/components/marketing/bento-grid";
+import HeroVideoSection from "@/components/marketing/HeroVideoSection";
 import {
   Bot,
   BrainCircuit,
@@ -19,7 +20,7 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-20 pb-20">
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 md:pt-32 md:pb-48 overflow-hidden">
+      <section className="relative pt-20 pb-12 md:pt-32 md:pb-24 overflow-hidden">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-background to-background"></div>
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-secondary/40 via-background to-background"></div>
 
@@ -71,6 +72,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <HeroVideoSection />
 
       {/* Stats Section */}
       <section className="container mx-auto px-4">

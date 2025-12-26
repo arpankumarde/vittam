@@ -53,7 +53,7 @@ export default function OffersPanel() {
   }, [offers, search, status]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAF9] p-6">
+    <div className="min-h-screen  p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold text-teal-800">Loan Offers</h1>

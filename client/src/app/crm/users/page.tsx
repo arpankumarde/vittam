@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { RefreshCcw } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { RefreshCcw , Search} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ export default function UsersPanel() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeUser, setActiveUser] = useState<any | null>(null);
+  const [search, setSearch] = useState("");
 
   const fetchUsers = async () => {
     try {
@@ -28,6 +29,15 @@ export default function UsersPanel() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) =>
+      `${u.name} ${u.email} ${u.city}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    );
+  }, [users, search]);
+
 
   return (
     <div className="min-h-screen bg-[#F8FAF9] p-6">
@@ -51,12 +61,22 @@ export default function UsersPanel() {
       <div className="grid grid-cols-[300px_1fr] gap-6">
         {/* LEFT USER LIST */}
         <aside className="bg-white rounded-2xl border p-4">
+                    <div className="relative mb-4">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search users..."
+              className="w-full rounded-xl border pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+          </div>
+
           <p className="text-sm text-gray-500 mb-3">
-            {users.length} users found
+            {filteredUsers.length} users found
           </p>
 
           <div className="space-y-2 max-h-[70vh] overflow-y-auto">
-            {users.map((u, i) => (
+            {filteredUsers.map((u, i) => (
               <button
                 key={i}
                 onClick={() => setActiveUser(u)}
@@ -67,7 +87,7 @@ export default function UsersPanel() {
                 }`}
               >
                 <p className="font-medium">{u.name}</p>
-                <p className="text-xs text-gray-500">{u.city}</p>
+                <p className="text-xs text-gray-500">{`${u.city}, India`}</p>
                 <p className="text-xs text-teal-700 mt-1">
                   ₹{u.pre_approved_limit.toLocaleString()}
                 </p>
@@ -96,7 +116,7 @@ export default function UsersPanel() {
 
               {/* INFO GRID */}
               <div className="grid grid-cols-3 gap-4">
-                <InfoCard label="City" value={activeUser.city} />
+                <InfoCard label="City" value={`${activeUser.city}, India`} />
                 <InfoCard
                   label="Date of Birth"
                   value={new Date(activeUser.dob).toLocaleDateString()}
