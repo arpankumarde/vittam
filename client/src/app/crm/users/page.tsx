@@ -1,33 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCcw, ChevronDown } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function UsersPanel() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeUser, setActiveUser] = useState<any | null>(null);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/users", {
-        cache: "no-store",
-      });
+      const res = await fetch("/api/users", { cache: "no-store" });
       const data = await res.json();
       setUsers(data.users);
+      setActiveUser(data.users[0]);
       toast.success("User data refreshed");
     } catch (err) {
-      console.error("Failed to fetch users", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -38,9 +30,10 @@ export default function UsersPanel() {
   }, []);
 
   return (
-    <div>
+    <div className="min-h-screen bg-[#F8FAF9] p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-teal-800">Users</h1>
+        <h1 className="text-2xl font-bold text-teal-800">Customer Data</h1>
 
         <Button
           variant="outline"
@@ -51,86 +44,118 @@ export default function UsersPanel() {
           <RefreshCcw
             className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
           />
-          {loading ? "Refreshing..." : "Refresh"}
+          Refresh
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border bg-white overflow-hidden">
-        <Table>
-          <TableHeader className="bg-[#FDF6EE]">
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>City</TableHead>
-              <TableHead>DOB</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Loans</TableHead>
-              <TableHead className="text-right">Pre-approved Limit</TableHead>
-            </TableRow>
-          </TableHeader>
+      <div className="grid grid-cols-[300px_1fr] gap-6">
+        {/* LEFT USER LIST */}
+        <aside className="bg-white rounded-2xl border p-4">
+          <p className="text-sm text-gray-500 mb-3">
+            {users.length} users found
+          </p>
 
-          <TableBody>
-            {users.map((u: any, i) => (
-              <TableRow key={i} className="hover:bg-teal-50 transition">
-                {/* Name */}
-                <TableCell>
-                  <p className="font-semibold text-gray-800">{u.name}</p>
-                  <p className="text-xs text-gray-500">{u.email}</p>
-                </TableCell>
-
-                {/* City */}
-                <TableCell>{u.city}</TableCell>
-
-                {/* DOB */}
-                <TableCell>{new Date(u.dob).toLocaleDateString()}</TableCell>
-
-                {/* Contact */}
-                <TableCell>
-                  <p className="text-sm">{u.phone}</p>
-                </TableCell>
-
-                {/* Loans */}
-                <TableCell>
-                  {u.current_loans?.length > 0 ? (
-                    <details className="group cursor-pointer">
-                      <summary className="flex items-center gap-1 text-sm text-teal-700">
-                        {u.current_loans.length} loan(s)
-                        <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
-                      </summary>
-
-                      <div className="mt-1 space-y-1">
-                        {u.current_loans.map((loan: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="rounded-lg bg-[#FDF6EE] px-2 py-1 text-xs leading-tight"
-                          >
-                            <p className="font-medium leading-tight">
-                              {loan.type}
-                            </p>
-                            <p className="leading-tight">
-                              EMI: ₹{loan.emi.toLocaleString()}
-                            </p>
-                            <p className="leading-tight">
-                              Outstanding: ₹{loan.outstanding.toLocaleString()}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  ) : (
-                    <span className="text-sm text-gray-500">No loans</span>
-                  )}
-                </TableCell>
-
-                {/* Limit */}
-                <TableCell className="text-right font-bold text-teal-700">
+          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+            {users.map((u, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveUser(u)}
+                className={`w-full text-left rounded-xl p-3 border transition ${
+                  activeUser?.email === u.email
+                    ? "bg-teal-50 border-teal-300"
+                    : "hover:bg-gray-50"
+                }`}
+              >
+                <p className="font-medium">{u.name}</p>
+                <p className="text-xs text-gray-500">{u.city}</p>
+                <p className="text-xs text-teal-700 mt-1">
                   ₹{u.pre_approved_limit.toLocaleString()}
-                </TableCell>
-              </TableRow>
+                </p>
+              </button>
             ))}
-          </TableBody>
-        </Table>
+          </div>
+        </aside>
+
+        {/* RIGHT DETAILS */}
+        {activeUser && (
+          <main className="space-y-6">
+            {/* PROFILE HEADER */}
+            <div className="bg-white rounded-3xl border p-6 shadow-sm">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="h-14 w-14 rounded-full bg-teal-100 flex items-center justify-center text-xl font-bold text-teal-700">
+                  {activeUser.name.charAt(0)}
+                </div>
+
+                <div>
+                  <h2 className="text-2xl font-semibold text-gray-800">
+                    {activeUser.name}
+                  </h2>
+                  <p className="text-sm text-gray-500">{activeUser.email}</p>
+                </div>
+              </div>
+
+              {/* INFO GRID */}
+              <div className="grid grid-cols-3 gap-4">
+                <InfoCard label="City" value={activeUser.city} />
+                <InfoCard
+                  label="Date of Birth"
+                  value={new Date(activeUser.dob).toLocaleDateString()}
+                />
+                <InfoCard label="Phone" value={activeUser.phone} />
+              </div>
+            </div>
+
+            {/* EXISTING LOANS */}
+            <div className="bg-white rounded-3xl border p-6 shadow-sm">
+              <h3 className="text-lg font-semibold mb-4">Existing Loans</h3>
+
+              {activeUser.current_loans?.length > 0 ? (
+                <div className="flex flex-wrap gap-3">
+                  {activeUser.current_loans.map((loan: any, i: number) => (
+                    <div
+                      key={i}
+                      className="rounded-xl bg-[#FDF6EE] px-4 py-3 hover:shadow transition"
+                    >
+                      <p className="font-medium text-sm">{loan.type}</p>
+                      <p className="text-xs text-gray-600">
+                        EMI ₹{loan.emi.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Outstanding ₹{loan.outstanding.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No active loans</p>
+              )}
+            </div>
+
+            {/* PRE-APPROVED LIMIT */}
+            <div className="rounded-3xl bg-gradient-to-br from-orange-50 to-orange-100 border p-6">
+              <p className="text-sm text-orange-700 mb-1">Pre-approved Limit</p>
+
+              <p className="text-4xl font-bold text-orange-600">
+                ₹{activeUser.pre_approved_limit.toLocaleString()}
+              </p>
+
+              <p className="text-xs text-orange-700 mt-2">
+                Based on current profile
+              </p>
+            </div>
+          </main>
+        )}
       </div>
+    </div>
+  );
+}
+
+/* Small Info Card */
+function InfoCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border bg-gray-50 p-4 hover:shadow-sm transition">
+      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className="text-sm font-semibold text-gray-800">{value}</p>
     </div>
   );
 }
