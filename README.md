@@ -21,30 +21,53 @@ Vittam is a multi-agent personal loan sales system designed to streamline the lo
 ### Backend
 
 1. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
-2. Set environment variables:
-   - `OPENAI_API_KEY`
-   - `OPENAI_API_BASE` (optional)
+
+2. Set environment variables in the `.env` file
+
 3. Run the server:
+
    ```bash
-   python main.py
+   uv run runner.py
    ```
 
 ### Frontend
 
 1. Navigate to the `client` directory:
+
    ```bash
    cd client
    ```
+
 2. Install dependencies:
+
    ```bash
-   npm install
+   pnpm install
    ```
+
 3. Start the development server:
+
    ```bash
-   npm run dev
+   pnpm dev
+   ```
+
+### Chatbot
+
+1. Navigate to the `chatbot` directory
+
+2. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+3. Run the chatbot:
+
+   ```bash
+   nodemon
    ```
 
 ## Project Structure
