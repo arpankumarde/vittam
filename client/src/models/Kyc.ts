@@ -21,7 +21,7 @@ const KycSchema = new Schema(
       default: true,
     },
   },
-  { timestamps: true, collection: "kyc" } 
+  { timestamps: true, collection: "kyc" }
 );
 
 export const Kyc = models.Kyc || model("Kyc", KycSchema);

@@ -16,7 +16,7 @@ const OfferTemplateSchema = new Schema(
       default: true,
     },
   },
-  { timestamps: true, collection: "offer_template" } 
+  { timestamps: true, collection: "offer_template" }
 );
 
 export const OfferTemplate =
