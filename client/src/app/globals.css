@@ -136,3 +136,53 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+@layer utilities {
+  @media print {
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    body {
+      background: white !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .sanction-letter-container {
+      min-height: auto !important;
+      padding: 0 !important;
+      background: white !important;
+      display: block !important;
+    }
+    .print-hidden {
+      display: none !important;
+    }
+    .print-shadow-none {
+      box-shadow: none !important;
+    }
+    .print-full-width {
+      max-width: 100% !important;
+      width: 100% !important;
+      margin: 0 !important;
+    }
+    .print-exact-blue {
+      background-color: #1961AC !important;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
+    }
+    .print-exact-white {
+      color: white !important;
+      -webkit-print-color-adjust: exact;
+    }
+    .print-exact-blue-text {
+      color: #f0f7ff !important;
+      -webkit-print-color-adjust: exact;
+    }
+    .print-logo-invert {
+      filter: brightness(0) invert(1) !important;
+      -webkit-print-color-adjust: exact;
+    }
+    table {
+      width: 100% !important;
+    }
+  }
+}
