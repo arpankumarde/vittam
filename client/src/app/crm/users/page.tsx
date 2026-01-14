@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { RefreshCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export default function UsersPanel() {
@@ -62,7 +63,7 @@ export default function UsersPanel() {
         <aside className="bg-white rounded-2xl border p-4">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-            <input
+            <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search users..."
@@ -79,11 +80,10 @@ export default function UsersPanel() {
               <button
                 key={i}
                 onClick={() => setActiveUser(u)}
-                className={`w-full text-left rounded-xl p-3 border transition ${
-                  activeUser?.email === u.email
+                className={`w-full text-left rounded-xl p-3 border transition ${activeUser?.email === u.email
                     ? "bg-teal-50 border-teal-300"
                     : "hover:bg-gray-50"
-                }`}
+                  }`}
               >
                 <p className="font-medium">{u.name}</p>
                 <p className="text-xs text-gray-500">{`${u.city}, India`}</p>

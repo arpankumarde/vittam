@@ -10,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -77,11 +78,11 @@ export default function OffersPanel() {
         {/* Search */}
         <div className="relative w-full md:w-1/3">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-          <input
+          <Input
             placeholder="Search offers..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            className="w-full rounded-xl border pl-9 pr-3 py-2 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           />
         </div>
 
@@ -91,7 +92,7 @@ export default function OffersPanel() {
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value as any)}
-            className="rounded-xl border pl-9 pr-8 py-2 text-sm focus:outline-none"
+            className="rounded-xl border bg-white pl-9 pr-8 py-2 text-sm focus:outline-none"
           >
             <option value="all">All Offers</option>
             <option value="active">Active Only</option>
