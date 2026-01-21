@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { FaGithub, FaLinkedin } from "react-icons/fa";
-import { MdMail } from "react-icons/md";
+import { FaGithub, FaLink, FaLinkedin } from "react-icons/fa";
 import { Users, Target, Rocket, Award, Heart, Lightbulb } from "lucide-react";
 
 const Page = () => {
@@ -179,10 +178,12 @@ const Page = () => {
                 <FaGithub className="size-5" />
               </Link>
               <Link
-                href="#"
+                href="https://arpan.growsoc.com/?ref=vittam"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
-                <MdMail className="size-5" />
+                <FaLink className="size-5" />
               </Link>
             </div>
           </div>
@@ -220,10 +221,12 @@ const Page = () => {
                 <FaGithub className="size-5" />
               </Link>
               <Link
-                href="#"
+                href="https://priyamahato.tech"
                 className="text-muted-foreground hover:text-primary transition-colors"
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                <MdMail className="size-5" />
+                <FaLink className="size-5" />
               </Link>
             </div>
           </div>

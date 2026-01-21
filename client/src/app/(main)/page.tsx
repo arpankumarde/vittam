@@ -477,11 +477,12 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
+                asChild
                 size="lg"
                 variant="secondary"
                 className="h-14 px-8 text-lg rounded-full font-bold"
               >
-                Get Started Now
+                <Link href="/solutions">Get Started Now</Link>
               </Button>
               <Button
                 size="lg"
