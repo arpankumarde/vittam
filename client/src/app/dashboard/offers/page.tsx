@@ -1,15 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  RefreshCcw,
-  Percent,
-  Calendar,
-  Search,
-  Filter,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
+import { RefreshCcw, Percent, Calendar, Search, Filter, CheckCircle, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -22,15 +14,18 @@ export default function OffersPanel() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
 
-  const fetchOffers = async () => {
+  const fetchOffers = async (refresh = false) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/offers", { cache: "no-store" });
+      const res = await fetch("/api/offers");
       const data = await res.json();
       setOffers(data.offers);
-      toast.success("Offers updated");
+      if (refresh) {
+        toast.success("Offers updated");
+      }
     } catch (err) {
-      console.error("Failed to fetch offers", err);
+      console.error(err);
+      toast.error("Failed to fetch offers");
     } finally {
       setLoading(false);
     }
@@ -54,27 +49,17 @@ export default function OffersPanel() {
   }, [offers, search, status]);
 
   return (
-    <div className="min-h-screen p-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-teal-800">Loan Offers</h1>
+    <div className="min-h-dvh">
+      <header className="h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
+        <h1 className="text-2xl font-bold">Loan Offers</h1>
 
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-teal-600 text-teal-700 hover:bg-teal-50"
-            onClick={fetchOffers}
-            disabled={loading}
-          >
-            <RefreshCcw
-              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-        </div>
-      </div>
+        <Button onClick={() => fetchOffers(true)} disabled={loading}>
+          <RefreshCcw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </header>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
+      <div className="flex flex-col md:flex-row gap-4 p-4">
         {/* Search */}
         <div className="relative w-full md:w-1/3">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -102,7 +87,7 @@ export default function OffersPanel() {
       </div>
 
       {/* OFFERS GRID */}
-      <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 px-4">
         {filteredOffers.map((o, i) => (
           <div
             key={i}
@@ -140,54 +125,27 @@ export default function OffersPanel() {
             <div className="mb-5 rounded-xl bg-teal-50 p-4">
               <p className="text-xs text-teal-700 mb-1">Loan Amount</p>
               <p className="text-xl font-bold text-teal-800">
-                ₹{o.min_amount.toLocaleString()} – ₹
-                {o.max_amount.toLocaleString()}
+                ₹{o.min_amount.toLocaleString()} – ₹{o.max_amount.toLocaleString()}
               </p>
             </div>
 
             {/* Details */}
             <div className="grid grid-cols-2 gap-4">
-              <Detail
-                icon={Percent}
-                label="Interest"
-                value={`${o.base_rate}%`}
-              />
-              <Detail
-                icon={Percent}
-                label="Processing Fee"
-                value={`${o.processing_fee_pct}%`}
-              />
-              <Detail
-                icon={Calendar}
-                label="Min Tenure"
-                value={`${o.min_tenure_months} mo`}
-              />
-              <Detail
-                icon={Calendar}
-                label="Max Tenure"
-                value={`${o.max_tenure_months} mo`}
-              />
+              <Detail icon={Percent} label="Interest" value={`${o.base_rate}%`} />
+              <Detail icon={Percent} label="Processing Fee" value={`${o.processing_fee_pct}%`} />
+              <Detail icon={Calendar} label="Min Tenure" value={`${o.min_tenure_months} mo`} />
+              <Detail icon={Calendar} label="Max Tenure" value={`${o.max_tenure_months} mo`} />
             </div>
           </div>
         ))}
 
-        {filteredOffers.length === 0 && (
-          <p className="text-sm text-gray-500">No offers found</p>
-        )}
+        {filteredOffers.length === 0 && <p className="text-sm text-gray-500">No offers found</p>}
       </div>
     </div>
   );
 }
 
-function Detail({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-}) {
+function Detail({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3">
       <div className="h-8 w-8 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center">

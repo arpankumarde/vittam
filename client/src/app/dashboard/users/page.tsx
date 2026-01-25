@@ -12,16 +12,19 @@ export default function UsersPanel() {
   const [activeUser, setActiveUser] = useState<any | null>(null);
   const [search, setSearch] = useState("");
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (refresh = false) => {
     try {
       setLoading(true);
-      const res = await fetch("/api/users", { cache: "no-store" });
+      const res = await fetch("/api/users");
       const data = await res.json();
       setUsers(data.users);
       setActiveUser(data.users[0]);
-      toast.success("User data refreshed");
+      if (refresh) {
+        toast.success("User data refreshed");
+      }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to fetch users");
     } finally {
       setLoading(false);
     }
@@ -33,34 +36,23 @@ export default function UsersPanel() {
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) =>
-      `${u.name} ${u.email} ${u.city}`
-        .toLowerCase()
-        .includes(search.toLowerCase())
+      `${u.name} ${u.email} ${u.city}`.toLowerCase().includes(search.toLowerCase())
     );
   }, [users, search]);
 
   return (
-    <div className="min-h-screen p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-teal-800">Customer Data</h1>
+    <div className="min-h-dvh">
+      <header className="h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
+        <h1 className="text-2xl font-bold">Customer Data</h1>
 
-        <Button
-          variant="outline"
-          className="border-teal-600 text-teal-700 hover:bg-teal-50"
-          onClick={fetchUsers}
-          disabled={loading}
-        >
-          <RefreshCcw
-            className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-          />
+        <Button onClick={() => fetchUsers(true)} disabled={loading}>
+          <RefreshCcw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-[300px_1fr] gap-6">
-        {/* LEFT USER LIST */}
-        <aside className="bg-white rounded-2xl border p-4">
+      <div className="grid grid-cols-[300px_1fr] gap-6 p-4">
+        <aside className="rounded-2xl border p-4">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
             <Input
@@ -71,19 +63,16 @@ export default function UsersPanel() {
             />
           </div>
 
-          <p className="text-sm text-gray-500 mb-3">
-            {filteredUsers.length} users found
-          </p>
+          <p className="text-sm text-gray-500 mb-3">{filteredUsers.length} users found</p>
 
           <div className="space-y-2 max-h-[70vh] overflow-y-auto">
             {filteredUsers.map((u, i) => (
               <button
                 key={i}
                 onClick={() => setActiveUser(u)}
-                className={`w-full text-left rounded-xl p-3 border transition ${activeUser?.email === u.email
-                  ? "bg-teal-50 border-teal-300"
-                  : "hover:bg-gray-50"
-                  }`}
+                className={`w-full text-left rounded-xl p-3 border transition ${
+                  activeUser?.email === u.email ? "bg-teal-50 border-teal-300" : "hover:bg-gray-50"
+                }`}
               >
                 <p className="font-medium">{u.name}</p>
                 <p className="text-xs text-gray-500">{`${u.city}, India`}</p>
@@ -106,12 +95,8 @@ export default function UsersPanel() {
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-semibold text-gray-800">
-                    {activeUser.name}
-                  </h2>
-                  <p className="text-sm text-gray-500">
-                    {activeUser.city}, India
-                  </p>
+                  <h2 className="text-2xl font-semibold text-gray-800">{activeUser.name}</h2>
+                  <p className="text-sm text-gray-500">{activeUser.city}, India</p>
                 </div>
               </div>
 
@@ -139,9 +124,7 @@ export default function UsersPanel() {
                         className="rounded-xl bg-[#FDF6EE] px-4 py-3 hover:shadow transition"
                       >
                         <p className="font-medium text-sm">{loan.type}</p>
-                        <p className="text-xs text-gray-600">
-                          EMI ₹{loan.emi.toLocaleString()}
-                        </p>
+                        <p className="text-xs text-gray-600">EMI ₹{loan.emi.toLocaleString()}</p>
                         <p className="text-xs text-gray-600">
                           Outstanding ₹{loan.outstanding.toLocaleString()}
                         </p>
@@ -155,17 +138,13 @@ export default function UsersPanel() {
 
               {/* PRE-APPROVED LIMIT */}
               <div className="flex-1 rounded-3xl bg-white border p-6">
-                <p className="text-sm text-green-700 mb-1">
-                  Pre-approved Limit
-                </p>
+                <p className="text-sm text-green-700 mb-1">Pre-approved Limit</p>
 
                 <p className="text-4xl font-bold text-green-600">
                   ₹{activeUser.pre_approved_limit.toLocaleString()}
                 </p>
 
-                <p className="text-xs text-green-700 mt-2">
-                  Based on current profile
-                </p>
+                <p className="text-xs text-green-700 mt-2">Based on current profile</p>
               </div>
             </div>
           </main>
@@ -175,7 +154,6 @@ export default function UsersPanel() {
   );
 }
 
-/* Small Info Card */
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border bg-gray-50 p-4 hover:shadow-sm transition">
