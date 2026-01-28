@@ -50,7 +50,7 @@ export default function OffersPanel() {
 
   return (
     <div className="min-h-dvh">
-      <header className="h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
+      <header className="bg-white h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
         <h1 className="text-2xl font-bold">Loan Offers</h1>
 
         <Button onClick={() => fetchOffers(true)} disabled={loading}>
@@ -91,12 +91,8 @@ export default function OffersPanel() {
         {filteredOffers.map((o, i) => (
           <div
             key={i}
-            className="
-              relative rounded-2xl border bg-white
-              p-6
-              transition-all
-              hover:shadow-lg hover:-translate-y-1
-            "
+            className="relative rounded-2xl border bg-white p-6
+              transition-all shadow-md hover:shadow-lg hover:-translate-y-1"
           >
             {/* Status Badge */}
             <div className="absolute top-4 right-4">

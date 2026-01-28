@@ -50,7 +50,7 @@ export default function KycPanel() {
 
   return (
     <div className="min-h-dvh">
-      <header className="h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
+      <header className="bg-white h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
         <h1 className="text-2xl font-bold">KYC Dashboard</h1>
 
         <Button onClick={() => fetchKyc(true)} disabled={loading}>
@@ -74,9 +74,9 @@ export default function KycPanel() {
       </div>
 
       {/* TABLE */}
-      <div className="rounded-lg border overflow-hidden shadow-sm mx-4 mb-4">
+      <div className="bg-white rounded-lg border overflow-hidden shadow-sm mx-4 mb-4">
         <Table>
-          <TableHeader className="bg-[#FDF6EE]">
+          <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>PAN</TableHead>
@@ -90,7 +90,7 @@ export default function KycPanel() {
 
           <TableBody>
             {kyc.map((k, i) => (
-              <TableRow key={i} className="hover:bg-gray-100">
+              <TableRow key={i} className="hover:bg-stone-100">
                 <TableCell className="font-semibold text-gray-800">{k.name}</TableCell>
                 <TableCell className="tracking-wider">{k.pan}</TableCell>
                 <TableCell>{new Date(k.dob).toLocaleDateString()}</TableCell>
@@ -140,7 +140,7 @@ function KpiCard({
   value: number;
   color: "teal" | "green" | "yellow" | "purple";
 }) {
-  const colorMap: any = {
+  const colorMap = {
     teal: "bg-teal-50 text-teal-700",
     green: "bg-green-50 text-green-700",
     yellow: "bg-yellow-50 text-yellow-700",
@@ -148,14 +148,14 @@ function KpiCard({
   };
 
   return (
-    <div className="rounded-3xl border bg-white p-5 hover:shadow-md transition">
-      <div
-        className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${colorMap[color]}`}
-      >
-        <Icon className="h-5 w-5" />
+    <div className="flex justify-between items-center gap-1 rounded-lg border bg-white p-5 shadow-md hover:shadow-lg transition">
+      <div className={`size-12 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
+        <Icon className="size-8" />
       </div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
+      <div className="flex flex-col gap-1">
+        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-3xl font-bold text-gray-800 text-right">{value}</p>
+      </div>
     </div>
   );
 }

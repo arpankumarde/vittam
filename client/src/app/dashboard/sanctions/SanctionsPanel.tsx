@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Separator } from "@/components/ui/separator";
 
 export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[] }) {
   const router = useRouter();
@@ -73,7 +74,7 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
 
   return (
     <div className="min-h-dvh">
-      <header className="h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
+      <header className="bg-white h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
         <h1 className="text-2xl font-bold">Sanction Management</h1>
 
         <Button onClick={refreshData} disabled={loading}>
@@ -83,7 +84,7 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
       </header>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4">
         <StatCard
           icon={<FileText className="h-6 w-6 text-blue-600" />}
           label="Total Sanctions"
@@ -110,16 +111,16 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 px-4">
         {/* LEFT LIST */}
-        <aside className="bg-white rounded-[2rem] border border-teal-100 p-6 shadow-sm flex flex-col h-[70vh]">
+        <aside className="bg-white rounded-lg px-4 py-6 shadow-sm flex flex-col h-[72dvh]">
           <div className="relative mb-6">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-teal-400" />
+            <Search className="absolute left-2 top-2 size-4" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by name or ID..."
-              className="w-full rounded-2xl border-teal-50 pl-10 pr-4 py-4 text-sm focus:ring-teal-500 bg-teal-50/30 font-medium"
+              className="w-full rounded-full pl-10 pr-4 py-4 text-sm bg-teal-50/30 font-medium"
             />
           </div>
 
@@ -136,7 +137,7 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
                 onClick={() => setActiveSanction(s)}
                 className={`w-full text-left rounded-2xl p-4 border-2 transition-all duration-300 group relative ${
                   activeSanction?._id === s._id
-                    ? "bg-teal-600 border-teal-600 text-white shadow-xl shadow-teal-200 scale-[1.04] z-10"
+                    ? "bg-teal-600 border-teal-600 text-white drop-shadow-lg"
                     : "bg-white border-transparent hover:border-teal-100 hover:bg-teal-50/50 hover:scale-[1.02]"
                 }`}
               >
@@ -197,28 +198,26 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
 
         {/* RIGHT DETAILS */}
         {activeSanction ? (
-          <main className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+          <main className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
             {/* MAIN INFO CARD */}
-            <div className="bg-white rounded-[2.5rem] border border-teal-50 p-8 shadow-xl shadow-teal-900/5 relative overflow-hidden">
+            <div className="bg-white rounded-lg border p-4 shadow-xl shadow-teal-900/5 relative overflow-hidden">
               {/* Decorative background element */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-teal-50 rounded-full -mr-32 -mt-32 opacity-50 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-teal-100 rounded-full -mr-32 -mt-32 opacity-50 pointer-events-none" />
 
               <div className="relative z-10">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-5">
-                    <div className="h-16 w-16 rounded-[1.25rem] bg-teal-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg shadow-teal-200">
+                    <div className="size-12 rounded-full bg-teal-600 flex items-center justify-center text-2xl font-bold text-white">
                       {activeSanction.customer_name?.charAt(0)}
                     </div>
                     <div>
-                      <h2 className="text-3xl font-black text-teal-950">
-                        {activeSanction.customer_name}
-                      </h2>
+                      <h2 className="text-xl font-bold">{activeSanction.customer_name}</h2>
                       <div className="flex items-center gap-3 mt-1">
-                        <p className="text-teal-600 font-bold bg-teal-50 px-3 py-1 rounded-full text-sm">
+                        <p className="text-teal-600 font-bold bg-teal-50 px-1.5 py-0.5 rounded-full text-sm">
                           ID: {activeSanction.customer_id}
                         </p>
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-bold border border-emerald-100">
-                          <CheckCircle2 className="h-4 w-4" />
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-bold border border-emerald-100">
+                          <CheckCircle2 className="size-3" />
                           {activeSanction.status?.toUpperCase()}
                         </div>
                       </div>
@@ -226,32 +225,16 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
                   </div>
 
                   <div className="flex gap-3">
-                    {/* <Button
-                      variant="outline"
-                      asChild
-                      className="rounded-2xl border-2 border-teal-100 py-3 px-5 h-auto hover:bg-teal-50 text-teal-700 font-bold text-sm"
-                    >
-                      <Link
-                        href={`/letters/${activeSanction._id}`}
-                        target="_blank"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Letter
-                      </Link>
-                    </Button> */}
-                    <Button
-                      asChild
-                      className="rounded-2xl py-3 px-6 h-auto  shadow-lg shadow-teal-200 font-bold text-sm"
-                    >
+                    <Button asChild size={"lg"}>
                       <Link href={`/letters/${activeSanction._id}`} target="_blank">
-                        <Eye className="h-4 w-4 mr-2" />
+                        <Eye className="size-5 mr-2" />
                         View Letter
                       </Link>
                     </Button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <DetailBox
                     label="Sanctioned Amount"
                     value={`₹${(activeSanction.loan_amount || 0).toLocaleString()}`}
@@ -294,7 +277,7 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
                       <IndianRupee className="h-5 w-5 text-teal-600" />
                       Bank Details
                     </h3>
-                    <div className="bg-teal-50/50 rounded-3xl p-6 border border-teal-50">
+                    <div className="bg-teal-600/20 rounded-3xl p-6 border border-teal-50">
                       <div className="space-y-4">
                         <BankInfo
                           label="Acc. Holder"
@@ -317,7 +300,9 @@ export default function SanctionsPanel({ sanctionsData }: { sanctionsData: any[]
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-between items-center text-xs font-medium text-teal-500 bg-teal-50/30 px-6 py-4 rounded-2xl">
+                <Separator className="my-4" />
+
+                <div className="flex justify-between items-center text-xs font-medium">
                   <p>Created on: {new Date(activeSanction.created_at).toLocaleString()}</p>
                   <p>Validity: {activeSanction.validity_days || 30} Days</p>
                   <p>Ref ID: {activeSanction._id.toString()}</p>
@@ -371,16 +356,12 @@ function StatCard({
 
 function DetailBox({ label, value, subValue }: { label: string; value: string; subValue: string }) {
   return (
-    <div className="bg-teal-50/50 rounded-[1.5rem] p-5 border border-teal-50 group hover:bg-teal-600 transition-all duration-300">
-      <p className="text-xs font-bold text-teal-600 mb-1 group-hover:text-white/80 transition-colors uppercase tracking-wider">
+    <div className="rounded-2xl p-4 border border-teal-50 group bg-emerald-700/80 transition-all duration-300 shadow-lg hover:group:shadow-lg">
+      <p className="text-xs font-bold mb-1 text-white/80 transition-colors uppercase tracking-wider">
         {label}
       </p>
-      <p className="text-2xl font-black text-teal-950 group-hover:text-white transition-colors">
-        {value}
-      </p>
-      <p className="text-xs font-bold text-teal-700/60 mt-2 group-hover:text-white/60 transition-colors italic">
-        {subValue}
-      </p>
+      <p className="text-2xl font-black text-white transition-colors">{value}</p>
+      <p className="text-xs font-bold text-white/80 mt-2 transition-colors italic">{subValue}</p>
     </div>
   );
 }
@@ -417,9 +398,7 @@ function BreakdownRow({
 function BankInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-center">
-      <p className="text-sm font-bold text-teal-800/40 uppercase tracking-widest text-[10px]">
-        {label}
-      </p>
+      <p className="font-bold text-teal-800/70 uppercase tracking-widest text-[10px]">{label}</p>
       <p className="text-sm font-bold text-teal-900 font-mono tracking-tight">{value || "N/A"}</p>
     </div>
   );

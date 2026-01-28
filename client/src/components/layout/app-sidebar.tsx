@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, ShieldCheck, CreditCard, FileCheck, User } from "lucide-react";
+import { Users, ShieldCheck, CreditCard, FileCheck, User, Home, Settings2 } from "lucide-react";
+import { RxDashboard } from "react-icons/rx";
 import {
   Sidebar,
   SidebarContent,
@@ -16,10 +17,12 @@ import { getSessionCookie } from "@/lib/cookie";
 import { useEffect, useState } from "react";
 
 const items = [
+  { id: "home", label: "Home", icon: RxDashboard },
   { id: "users", label: "Users", icon: Users },
   { id: "kyc", label: "KYC Details", icon: ShieldCheck },
   { id: "offers", label: "Offers", icon: CreditCard },
   { id: "sanctions", label: "Sanctions", icon: FileCheck },
+  { id: "configuration", label: "Configuration", icon: Settings2 },
 ];
 
 const AppSidebar = () => {
@@ -30,10 +33,14 @@ const AppSidebar = () => {
   useEffect(() => {
     const fetchUser = async () => {
       const user = await getSessionCookie();
-      setUser(JSON.parse(user as string));
+      if (user) {
+        setUser(JSON.parse(user as string));
+      } else {
+        setUser(null);
+      }
     };
     fetchUser();
-  }, [user]);
+  }, []);
 
   return (
     <Sidebar className="border-gray-800/30">
@@ -53,10 +60,12 @@ const AppSidebar = () => {
                 asChild
                 isActive={active === id}
                 size="lg"
-                className={`px-4 ${active === id ? "!bg-teal-600 !text-white" : ""}`}
+                className={`px-4 hover:bg-gray-300 transition-colors duration-200 ${
+                  active === id ? "!text-white shadow-xl" : ""
+                }`}
               >
                 <Link href={`/dashboard/${id}`}>
-                  <Icon className="size-5" />
+                  <Icon className="!size-5" />
                   <span>{label}</span>
                 </Link>
               </SidebarMenuButton>
@@ -66,9 +75,14 @@ const AppSidebar = () => {
       </SidebarContent>
       {user && (
         <SidebarFooter>
-          <div className="flex items-center gap-2 h-14 bg-white rounded-lg px-4 border border-gray-200">
-            <User className="size-8 rounded-full bg-gray-200 p-1" />
-            <span>{user?.name}</span>
+          <div className="flex items-center gap-2 h-14 bg-gray-300/50 rounded-lg px-4">
+            <User className="size-8 rounded-full bg-white p-1" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">{user?.name || "User"}</span>
+              <span className="text-xs text-muted-foreground">
+                {user?.email || "user@example.com"}
+              </span>
+            </div>
           </div>
         </SidebarFooter>
       )}

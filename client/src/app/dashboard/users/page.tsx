@@ -41,8 +41,8 @@ export default function UsersPanel() {
   }, [users, search]);
 
   return (
-    <div className="min-h-dvh">
-      <header className="h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
+    <div className="h-dvh">
+      <header className="bg-white h-16 flex items-center justify-between border-b border-gray-800/30 px-4">
         <h1 className="text-2xl font-bold">Customer Data</h1>
 
         <Button onClick={() => fetchUsers(true)} disabled={loading}>
@@ -51,8 +51,8 @@ export default function UsersPanel() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-[300px_1fr] gap-6 p-4">
-        <aside className="rounded-2xl border p-4">
+      <div className="grid grid-cols-[300px_1fr] h-[80dvh]">
+        <aside className="bg-white border p-4">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
             <Input
@@ -65,7 +65,7 @@ export default function UsersPanel() {
 
           <p className="text-sm text-gray-500 mb-3">{filteredUsers.length} users found</p>
 
-          <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+          <div className="space-y-2 h-[75dvh] overflow-y-auto">
             {filteredUsers.map((u, i) => (
               <button
                 key={i}
@@ -86,7 +86,7 @@ export default function UsersPanel() {
 
         {/* RIGHT DETAILS */}
         {activeUser && (
-          <main className="space-y-6">
+          <main className="space-y-6 m-4">
             {/* PROFILE HEADER */}
             <div className="bg-white rounded-3xl border p-6 shadow-sm">
               <div className="flex items-center gap-4 mb-6">
