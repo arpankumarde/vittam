@@ -4,12 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import Image from "next/image";
+import { getAssetUrl } from "@/lib/storage";
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,13 +15,15 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto px-4 flex h-16 items-center">
         {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
-            <span className="text-primary-foreground font-bold text-lg">V</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">
-            Vittam
-          </span>
+        <Link href="/" className="flex justify-center items-center">
+          <Image
+            src={getAssetUrl("logo.png")}
+            alt="Vittam"
+            width={100}
+            height={80}
+            className="object-contain"
+            unoptimized
+          />
         </Link>
 
         {/* Desktop Nav & Actions */}
@@ -69,8 +68,14 @@ export const Header = () => {
             >
               Sign In
             </Button> */}
-            <Button className="hidden md:flex font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+            <Button
+              variant="outline"
+              className="hidden md:flex font-medium border-2 border-teal-800/60"
+            >
               <Link href="/contact">Book a Demo</Link>
+            </Button>
+            <Button className="hidden md:flex font-medium shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+              <Link href="/login">Get Started</Link>
             </Button>
             <Button
               variant="ghost"
@@ -87,11 +92,7 @@ export const Header = () => {
       </div>
 
       {/* Mobile Menu */}
-      <Sheet
-        open={mobileMenuOpen}
-        onOpenChange={setMobileMenuOpen}
-        modal={true}
-      >
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} modal={true}>
         <SheetContent side="right" className="z-[19999999]">
           <SheetHeader className="sr-only">
             <SheetTitle>Menu</SheetTitle>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, ShieldCheck, CreditCard, FileCheck, User, Home, Settings2 } from "lucide-react";
+import { Users, ShieldCheck, CreditCard, FileCheck, User, Settings2 } from "lucide-react";
 import { RxDashboard } from "react-icons/rx";
 import {
   Sidebar,
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/sidebar";
 import { getSessionCookie } from "@/lib/cookie";
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import { getAssetUrl } from "@/lib/storage";
 
 const items = [
   { id: "home", label: "Home", icon: RxDashboard },
@@ -27,7 +29,7 @@ const items = [
 
 const AppSidebar = () => {
   const pathname = usePathname();
-  const active = pathname.split("/")[2] || "users";
+  const active = pathname.split("/")[2] || "home";
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -45,11 +47,15 @@ const AppSidebar = () => {
   return (
     <Sidebar className="border-gray-800/30">
       <SidebarHeader className="h-16 flex justify-center px-4 border-b border-gray-800/30">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="size-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">V</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-foreground">Vittam</span>
+        <Link href="/" className="flex justify-center items-center">
+          <Image
+            src={getAssetUrl("logo.png")}
+            alt="Vittam"
+            width={100}
+            height={80}
+            className="object-contain"
+            unoptimized
+          />
         </Link>
       </SidebarHeader>
       <SidebarContent className="px-2 mt-4">
@@ -60,7 +66,7 @@ const AppSidebar = () => {
                 asChild
                 isActive={active === id}
                 size="lg"
-                className={`px-4 hover:bg-gray-300 transition-colors duration-200 ${
+                className={`px-4 hover:bg-gray-300 active:bg-gray-300 transition-colors duration-200 ${
                   active === id ? "!text-white shadow-xl" : ""
                 }`}
               >
