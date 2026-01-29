@@ -20,55 +20,109 @@ export default function Home() {
   return (
     <div className="flex flex-col gap-20 pb-20">
       {/* Hero Section */}
-      <section className="relative pt-20 pb-12 md:pt-32 md:pb-24 overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-background to-background"></div>
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-secondary/40 via-background to-background"></div>
+      <section className="relative pt-20 pb-24 md:pt-32 md:pb-28 overflow-hidden bg-background">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,_var(--color-primary)_10%,transparent_30%)] opacity-[0.05]"></div>
 
-        <div className="container mx-auto px-4 text-center">
-          <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary mb-8 backdrop-blur-sm">
-            <Sparkles className="mr-2 h-3.5 w-3.5" />
-            <span>Revolutionizing NBFC Sales</span>
-          </div>
+        <div className="container mx-auto px-4 max-w-7xl">
+          <div className="grid lg:grid-cols-12 gap-16 items-center">
+            {/* Left Column: Core Value Proposition */}
+            <div className="lg:col-span-12 xl:col-span-7 space-y-10">
+              <div className="inline-flex items-center gap-2 border-l-2 border-primary pl-4 py-1">
+                <span className="text-xs font-black tracking-[0.3em] text-primary uppercase">
+                  Institutional AI Infrastructure
+                </span>
+              </div>
 
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 max-w-4xl mx-auto leading-tight">
-            From Application to Sanction in{" "}
-            <span className="text-primary relative inline-block">
-              Minutes
-              <svg
-                className="absolute w-full h-3 -bottom-1 left-0 text-primary/20 -z-10"
-                viewBox="0 0 100 10"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M0 5 Q 50 10 100 5"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  fill="none"
+              <div className="space-y-6">
+                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-foreground leading-[1] max-w-4xl">
+                  Precision AI for <br />
+                  <span className="text-primary italic">Lending Institutions.</span>
+                </h1>
+                <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl leading-relaxed font-light">
+                  Vittam provides the high-compliance infrastructure for elite NBFCs
+                  to scale personal loan portfolios with 83% higher conversion velocity.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-6">
+                <Button
+                  size="lg"
+                  className="h-16 px-12 text-lg rounded-sm shadow-xl shadow-primary/10 transition-all hover:translate-y-[-2px] bg-primary text-primary-foreground font-bold"
+                  asChild
+                >
+                  <Link href="/contact">Schedule Enterprise Review</Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-16 px-12 text-lg rounded-sm border-2 border-border/80 hover:bg-secondary/10 transition-all font-bold"
+                  asChild
+                >
+                  <Link href="/solutions">View Architecture</Link>
+                </Button>
+              </div>
+
+              {/* Performance Metrics Bar */}
+              <div className="grid grid-cols-3 gap-12 pt-12 border-t border-border/60 max-w-2xl">
+                <div className="space-y-2">
+                  <div className="text-3xl font-bold text-foreground tracking-tighter tabular-nums">83%</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Conversion Lift</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-3xl font-bold text-foreground tracking-tighter tabular-nums">5m</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Decision Time</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-3xl font-bold text-foreground tracking-tighter tabular-nums">24/7</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-black">Peak Uptime</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Grounded Professional Imagery */}
+            <div className="hidden xl:block xl:col-span-5 relative">
+              <div className="aspect-[4/5] bg-secondary/10 rounded-sm overflow-hidden border border-border/60 shadow-2xl relative">
+                <img
+                  src="https://images.unsplash.com/photo-1554469384-e58fac16e23a?auto=format&fit=crop&q=80&w=1000"
+                  alt="Financial District Architecture"
+                  className="object-cover h-full w-full opacity-90 contrast-110 grayscale-[0.2]"
                 />
-              </svg>
-            </span>
-          </h1>
+                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent"></div>
 
-          <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-            Vittam&apos;s AI-driven multi-agent system automates the entire
-            personal loan journey, boosting conversions by 50-83%.
-          </p>
+                <div className="absolute bottom-8 left-8 right-8 bg-white/95 backdrop-blur-md p-8 border-l-4 border-primary shadow-2xl">
+                  <div className="flex items-center gap-5">
+                    <div className="h-14 w-14 bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                      <ShieldCheck className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-foreground uppercase tracking-wider">Institutional Reliability</div>
+                      <div className="text-xs text-muted-foreground mt-1 font-medium italic">Certified Decisioning Infrastructure</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button
-              size="lg"
-              className="h-12 px-8 text-lg rounded-full shadow-xl shadow-primary/20 hover:shadow-primary/30 hover:scale-105 transition-all duration-300"
-            >
-              <Link href="/contact">Book a Demo</Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-12 px-8 text-lg rounded-full hover:bg-secondary/50 transition-all duration-300"
-              asChild
-            >
-              <Link href="/solutions">View Solutions</Link>
-            </Button>
+        {/* Client Trust Ribbon */}
+        <div className="w-full py-12 mt-20 border-y border-border/40 bg-[#FDF6EE]/50">
+          <div className="container mx-auto px-4 max-w-7xl">
+            <div className="flex flex-col space-y-10">
+              <div className="flex items-center gap-6">
+                <span className="text-[10px] font-black tracking-[0.5em] text-primary/80 uppercase whitespace-nowrap">
+                  Trusted by Elite Financial Institutions
+                </span>
+                <div className="h-px bg-primary/20 flex-1"></div>
+              </div>
+              <div className="flex flex-wrap justify-between items-center gap-x-12 gap-y-10 opacity-60 grayscale hover:grayscale-0 transition-all duration-700">
+                <div className="text-2xl font-black tracking-tighter text-foreground italic">TATA CAPITAL</div>
+                <div className="text-2xl font-bold tracking-tight text-foreground">HDFC BANK</div>
+                <div className="text-2xl font-extrabold tracking-widest text-foreground uppercase pt-1 scale-90">ADITYA BIRLA</div>
+                <div className="text-2xl font-serif font-bold text-foreground">IndusInd Bank</div>
+                <div className="text-2xl font-bold tracking-tighter text-foreground italic border-b-4 border-primary/20 pb-1">ICICI Bank</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
