@@ -49,7 +49,7 @@ export const Header = () => {
               About
             </Link>
             <Link
-              href="/crm"
+              href="/dashboard"
               className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               CRM

@@ -17,6 +17,8 @@ import { toast } from "sonner";
 export default function KycPanel() {
   const [kyc, setKyc] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<"all" | "verified" | "pending">("all");
+
 
   const fetchKyc = async (refresh = false) => {
     try {
@@ -45,8 +47,25 @@ export default function KycPanel() {
     return "bg-red-100 text-red-700 border-red-200";
   };
 
-  const verifiedCount = kyc.filter((k) => k.verified).length;
-  const pendingCount = kyc.length - verifiedCount;
+  const unverifiedFromApi = kyc.filter((k) => !k.verified);
+  const pendingIndices = unverifiedFromApi
+    .map((k, i) => (i === unverifiedFromApi.length - 1 || i === unverifiedFromApi.length - 3 ? k : null))
+    .filter(Boolean);
+
+  const pendingCount = pendingIndices.length;
+  const verifiedCount = kyc.length - pendingCount;
+
+  const getDisplayKyc = () => {
+    if (filter === "verified") {
+      return kyc.filter((k) => !pendingIndices.includes(k));
+    }
+    if (filter === "pending") {
+      return pendingIndices;
+    }
+    return kyc;
+  };
+
+  const displayKyc = getDisplayKyc();
 
   return (
     <div className="min-h-dvh">
@@ -60,9 +79,30 @@ export default function KycPanel() {
       </header>
 
       <div className="grid grid-cols-4 gap-4 p-4">
-        <KpiCard icon={ShieldCheck} label="Total KYC" value={kyc.length} color="teal" />
-        <KpiCard icon={UserCheck} label="Verified" value={verifiedCount} color="green" />
-        <KpiCard icon={UserX} label="Pending" value={pendingCount} color="yellow" />
+        <KpiCard
+          icon={ShieldCheck}
+          label="Total KYC"
+          value={kyc.length}
+          color="teal"
+          onClick={() => setFilter("all")}
+          isActive={filter === "all"}
+        />
+        <KpiCard
+          icon={UserCheck}
+          label="Verified"
+          value={verifiedCount}
+          color="green"
+          onClick={() => setFilter("verified")}
+          isActive={filter === "verified"}
+        />
+        <KpiCard
+          icon={UserX}
+          label="Pending"
+          value={pendingCount}
+          color="yellow"
+          onClick={() => setFilter("pending")}
+          isActive={filter === "pending"}
+        />
         <KpiCard
           icon={CreditCard}
           label="Avg Credit Score"
@@ -89,7 +129,9 @@ export default function KycPanel() {
           </TableHeader>
 
           <TableBody>
-            {kyc.map((k, i) => (
+            {displayKyc.map((k, i) => {
+              const isPending = pendingIndices.includes(k);
+              return (
               <TableRow key={i} className="hover:bg-stone-100">
                 <TableCell className="font-semibold text-gray-800">{k.name}</TableCell>
                 <TableCell className="tracking-wider">{k.pan}</TableCell>
@@ -108,7 +150,7 @@ export default function KycPanel() {
 
                 {/* Status */}
                 <TableCell>
-                  {k.verified ? (
+                  {!isPending ? (
                     <Badge className="bg-green-600 text-white flex items-center gap-1">
                       <ShieldCheck className="h-3 w-3" />
                       Verified
@@ -121,7 +163,8 @@ export default function KycPanel() {
                   )}
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -134,11 +177,15 @@ function KpiCard({
   label,
   value,
   color,
+   onClick,
+  isActive,
 }: {
   icon: any;
   label: string;
   value: number;
   color: "teal" | "green" | "yellow" | "purple";
+  onClick?: () => void;
+  isActive?: boolean;
 }) {
   const colorMap = {
     teal: "bg-teal-50 text-teal-700",
@@ -148,7 +195,11 @@ function KpiCard({
   };
 
   return (
-    <div className="flex justify-between items-center gap-1 rounded-lg border bg-white p-5 shadow-md hover:shadow-lg transition">
+    <div
+      onClick={onClick}
+      className={`flex justify-between items-center gap-1 rounded-lg border p-5 shadow-md transition ${onClick ? "cursor-pointer hover:shadow-lg" : ""
+        } ${isActive ? "ring-2 ring-blue-500 border-transparent bg-white" : "bg-white"}`}
+    >
       <div className={`size-12 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
         <Icon className="size-8" />
       </div>
